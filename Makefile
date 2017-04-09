@@ -8,8 +8,14 @@ $(BUNDLE): manifest.ttl simplearpeggiator.ttl simplearpeggiator.so
 	mkdir $(BUNDLE)
 	cp manifest.ttl simplearpeggiator.ttl simplearpeggiator.so $(BUNDLE)
 
-simplearpeggiator.so: simplearpeggiator.c uris.h
-	gcc -shared -fPIC -DPIC simplearpeggiator.c `pkg-config --cflags --libs lv2-plugin` -o simplearpeggiator.so
+simplearpeggiator.o: simplearpeggiator.c uris.h
+	gcc -c -fPIC -DPIC simplearpeggiator.c 
+
+arpeggiator.o: arpeggiator.c arpeggiator.h
+	gcc -c -fPIC -DPIC arpeggiator.c 
+
+simplearpeggiator.so: simplearpeggiator.o arpeggiator.o
+	gcc -shared -fPIC -DPIC arpeggiator.o simplearpeggiator.o `pkg-config --cflags --libs lv2-plugin` -o simplearpeggiator.so
 
 
 install: $(BUNDLE)
@@ -18,5 +24,5 @@ install: $(BUNDLE)
 	cp -R $(BUNDLE) $(INSTALL_DIR)
 
 clean:
-	rm -rf $(BUNDLE) simplearpeggiator.so
+	rm -rf $(BUNDLE) simplearpeggiator.so simplearpeggiator.o arpeggiator.o
 

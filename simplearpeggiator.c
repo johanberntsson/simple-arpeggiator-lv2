@@ -16,7 +16,6 @@
 */
 
 #include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #ifndef __cplusplus
@@ -33,6 +32,7 @@
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
 
 #include "./uris.h"
+#include "./arpeggiator.h"
 
 /* has to correspond to index port numbers in *.ttl */
 enum {
@@ -44,20 +44,20 @@ enum {
 	SIMPLEARPEGGIATOR_GATE = 5
 };
 
-enum {
+enum chordtype {
     OCTAVE = 0,
     MAJOR = 1,
     MINOR = 2
-} ChordType;
+};
 
-enum {
+enum timetype {
     BEAT = 0,
     BEAT_1_2 = 1,
     BEAT_1_4 = 2,
     BEAT_1_8 = 3,
     BEAT_1_16 = 4,
     BEAT_1_32 = 5
-} TimeType;
+};
 
 typedef struct {
 	// Features
@@ -66,9 +66,9 @@ typedef struct {
 	// Ports
 	const LV2_Atom_Sequence* in_port;
 	LV2_Atom_Sequence*    out_port;
-	int32_t *             chord;
-	int32_t *             range; /* 1 - 9 octaves */
-	int32_t *             time;
+	float *               chord;
+	float *               range; /* 1 - 9 octaves */
+	float *               time;
 	float *               gate; /* 0 - 200 % */
 
 	// URIs
@@ -90,13 +90,13 @@ static void connect_port(
 		self->out_port = (LV2_Atom_Sequence*)data;
 		break;
 	case SIMPLEARPEGGIATOR_CHORD:
-		self->chord = (int32_t *)data;
+		self->chord = (float *)data;
 		break;
 	case SIMPLEARPEGGIATOR_RANGE:
-		self->range = (int32_t *)data;
+		self->range = (float *)data;
 		break;
 	case SIMPLEARPEGGIATOR_TIME:
-		self->time = (int32_t *) data;
+		self->time = (float *) data;
 		break;
 	case SIMPLEARPEGGIATOR_GATE:
 		self->gate = (float*)data;
@@ -147,6 +147,11 @@ static void run(LV2_Handle instance, uint32_t   sample_count)
 	SimpleArpeggiator*     self = (SimpleArpeggiator*)instance;
 	SimpleArpeggiatorURIs* uris = &self->uris;
 
+	enum chordtype chord = (int) *self->chord;
+	int range = (int) *self->range;
+	enum timetype time = (int) *self->chord;
+	float gate = *self->gate;
+
 	// Struct for a 3 byte MIDI event, used for writing notes
 	typedef struct {
 		LV2_Atom_Event event;
@@ -182,21 +187,28 @@ static void run(LV2_Handle instance, uint32_t   sample_count)
 					newnote.event.time.frames = ev->time.frames;  // Same time
 					newnote.event.body.type   = ev->body.type;    // Same type
 					newnote.event.body.size   = ev->body.size;    // Same size
-		FILE *f = fopen("/tmp/test", "w");
-		int x = *self->range;
-		fprintf(f, "test %d\n", x);
-		fclose(f);
 					
 					newnote.msg[0] = msg[0];      // Same status
 					//newnote.msg[1] = msg[1] + 7;  // Pitch up 7 semitones
-					newnote.msg[1] = msg[1] + *self->range;  // Pitch up 7 semitones
+					newnote.msg[1] = msg[1] + range;  // Pitch up 7 semitones
 					newnote.msg[2] = msg[2];      // Same velocity
+			    arpeggiator_midi_start();
 
 					// Write 5th event
 					lv2_atom_sequence_append_event(
 						self->out_port, out_capacity, &newnote.event);
 				}
 				break;
+			case LV2_MIDI_MSG_START:
+			    // sequencer started
+			    arpeggiator_midi_start();
+			    break;
+			case LV2_MIDI_MSG_STOP:
+			    // sequencer stopped
+			case LV2_MIDI_MSG_CONTINUE:
+			    // sequencer restarted
+			case LV2_MIDI_MSG_CLOCK:
+			    // called 24 times per quarter note
 			default:
 				// Forward all other MIDI events directly
 				lv2_atom_sequence_append_event(
