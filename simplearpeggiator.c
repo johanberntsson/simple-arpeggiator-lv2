@@ -1,5 +1,5 @@
 /*
-  LV2 Fifths Example Plugin
+  LV2 SimpleArpeggiator Example Plugin
   Copyright 2014 David Robillard <d@drobilla.net>
 
   Permission to use, copy, modify, and/or distribute this software for any
@@ -34,8 +34,8 @@
 #include "./uris.h"
 
 enum {
-	FIFTHS_IN  = 0,
-	FIFTHS_OUT = 1
+	SIMPLEARPEGGIATOR_IN  = 0,
+	SIMPLEARPEGGIATOR_OUT = 1
 };
 
 typedef struct {
@@ -47,20 +47,20 @@ typedef struct {
 	LV2_Atom_Sequence*       out_port;
 
 	// URIs
-	FifthsURIs uris;
-} Fifths;
+	SimpleArpeggiatorURIs uris;
+} SimpleArpeggiator;
 
 static void
 connect_port(LV2_Handle instance,
              uint32_t   port,
              void*      data)
 {
-	Fifths* self = (Fifths*)instance;
+	SimpleArpeggiator* self = (SimpleArpeggiator*)instance;
 	switch (port) {
-	case FIFTHS_IN:
+	case SIMPLEARPEGGIATOR_IN:
 		self->in_port = (const LV2_Atom_Sequence*)data;
 		break;
-	case FIFTHS_OUT:
+	case SIMPLEARPEGGIATOR_OUT:
 		self->out_port = (LV2_Atom_Sequence*)data;
 		break;
 	default:
@@ -75,11 +75,11 @@ instantiate(const LV2_Descriptor*     descriptor,
             const LV2_Feature* const* features)
 {
 	// Allocate and initialise instance structure.
-	Fifths* self = (Fifths*)malloc(sizeof(Fifths));
+	SimpleArpeggiator* self = (SimpleArpeggiator*)malloc(sizeof(SimpleArpeggiator));
 	if (!self) {
 		return NULL;
 	}
-	memset(self, 0, sizeof(Fifths));
+	memset(self, 0, sizeof(SimpleArpeggiator));
 
 	// Get host features
 	for (int i = 0; features[i]; ++i) {
@@ -94,7 +94,7 @@ instantiate(const LV2_Descriptor*     descriptor,
 	}
 
 	// Map URIs and initialise forge/logger
-	map_fifths_uris(self->map, &self->uris);
+	map_simplearpeggiator_uris(self->map, &self->uris);
  
 	return (LV2_Handle)self;
 }
@@ -109,8 +109,8 @@ static void
 run(LV2_Handle instance,
     uint32_t   sample_count)
 {
-	Fifths*     self = (Fifths*)instance;
-	FifthsURIs* uris = &self->uris;
+	SimpleArpeggiator*     self = (SimpleArpeggiator*)instance;
+	SimpleArpeggiatorURIs* uris = &self->uris;
 
 	// Struct for a 3 byte MIDI event, used for writing notes
 	typedef struct {
@@ -141,20 +141,20 @@ run(LV2_Handle instance,
 				const uint8_t note = msg[1];
 				if (note <= 127 - 7) {
 					// Make a note one 5th (7 semitones) higher than input
-					MIDINoteEvent fifth;
+					MIDINoteEvent newnote;
 					
-					// Could simply do fifth.event = *ev here instead...
-					fifth.event.time.frames = ev->time.frames;  // Same time
-					fifth.event.body.type   = ev->body.type;    // Same type
-					fifth.event.body.size   = ev->body.size;    // Same size
+					// Could simply do newnote.event = *ev here instead...
+					newnote.event.time.frames = ev->time.frames;  // Same time
+					newnote.event.body.type   = ev->body.type;    // Same type
+					newnote.event.body.size   = ev->body.size;    // Same size
 					
-					fifth.msg[0] = msg[0];      // Same status
-					fifth.msg[1] = msg[1] + 7;  // Pitch up 7 semitones
-					fifth.msg[2] = msg[2];      // Same velocity
+					newnote.msg[0] = msg[0];      // Same status
+					newnote.msg[1] = msg[1] + 7;  // Pitch up 7 semitones
+					newnote.msg[2] = msg[2];      // Same velocity
 
 					// Write 5th event
 					lv2_atom_sequence_append_event(
-						self->out_port, out_capacity, &fifth.event);
+						self->out_port, out_capacity, &newnote.event);
 				}
 				break;
 			default:
@@ -174,7 +174,7 @@ extension_data(const char* uri)
 }
 
 static const LV2_Descriptor descriptor = {
-	EG_FIFTHS_URI,
+	SIMPLEARPEGGIATOR_URI,
 	instantiate,
 	connect_port,
 	NULL,  // activate,

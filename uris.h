@@ -1,5 +1,5 @@
 /*
-  LV2 Fifths Example Plugin
+  LV2 SimpleArpeggiator Example Plugin
   Copyright 2014 David Robillard <d@drobilla.net>
 
   Permission to use, copy, modify, and/or distribute this software for any
@@ -15,17 +15,17 @@
   OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
-#ifndef FIFTHS_URIS_H
-#define FIFTHS_URIS_H
+#ifndef SIMPLEARPEGGIATOR_URIS_H
+#define SIMPLEARPEGGIATOR_URIS_H
 
 #include "lv2/lv2plug.in/ns/ext/log/log.h"
 #include "lv2/lv2plug.in/ns/ext/midi/midi.h"
 #include "lv2/lv2plug.in/ns/ext/state/state.h"
 
-#define EG_FIFTHS_URI          "https://github.com/johanberntsson/simple-arpeggiator-lv2"
-#define EG_FIFTHS__sample      EG_FIFTHS_URI "#sample"
-#define EG_FIFTHS__applySample EG_FIFTHS_URI "#applySample"
-#define EG_FIFTHS__freeSample  EG_FIFTHS_URI "#freeSample"
+#define SIMPLEARPEGGIATOR_URI          "https://github.com/johanberntsson/simple-arpeggiator-lv2"
+#define SIMPLEARPEGGIATOR__sample      SIMPLEARPEGGIATOR_URI "#sample"
+#define SIMPLEARPEGGIATOR__applySample SIMPLEARPEGGIATOR_URI "#applySample"
+#define SIMPLEARPEGGIATOR__freeSample  SIMPLEARPEGGIATOR_URI "#freeSample"
 
 typedef struct {
 	LV2_URID atom_Blank;
@@ -41,10 +41,10 @@ typedef struct {
 	LV2_URID patch_Set;
 	LV2_URID patch_property;
 	LV2_URID patch_value;
-} FifthsURIs;
+} SimpleArpeggiatorURIs;
 
 static inline void
-map_fifths_uris(LV2_URID_Map* map, FifthsURIs* uris)
+map_simplearpeggiator_uris(LV2_URID_Map* map, SimpleArpeggiatorURIs* uris)
 {
 	uris->atom_Blank         = map->map(map->handle, LV2_ATOM__Blank);
 	uris->atom_Path          = map->map(map->handle, LV2_ATOM__Path);
@@ -52,13 +52,13 @@ map_fifths_uris(LV2_URID_Map* map, FifthsURIs* uris)
 	uris->atom_Sequence      = map->map(map->handle, LV2_ATOM__Sequence);
 	uris->atom_URID          = map->map(map->handle, LV2_ATOM__URID);
 	uris->atom_eventTransfer = map->map(map->handle, LV2_ATOM__eventTransfer);
-	uris->eg_applySample     = map->map(map->handle, EG_FIFTHS__applySample);
-	uris->eg_freeSample      = map->map(map->handle, EG_FIFTHS__freeSample);
-	uris->eg_sample          = map->map(map->handle, EG_FIFTHS__sample);
+	uris->eg_applySample     = map->map(map->handle, SIMPLEARPEGGIATOR__applySample);
+	uris->eg_freeSample      = map->map(map->handle, SIMPLEARPEGGIATOR__freeSample);
+	uris->eg_sample          = map->map(map->handle, SIMPLEARPEGGIATOR__sample);
 	uris->midi_Event         = map->map(map->handle, LV2_MIDI__MidiEvent);
 	uris->patch_Set          = map->map(map->handle, LV2_PATCH__Set);
 	uris->patch_property     = map->map(map->handle, LV2_PATCH__property);
 	uris->patch_value        = map->map(map->handle, LV2_PATCH__value);
 }
 
-#endif  /* FIFTHS_URIS_H */
+#endif  /* SIMPLEARPEGGIATOR_URIS_H */
