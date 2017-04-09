@@ -1,5 +1,5 @@
 /*
-  LV2 SimpleArpeggiator Example Plugin
+  SimpleArpeggiator LV2 Plugin
   Copyright 2017 Johan Berntsson
 
   Permission to use, copy, modify, and/or distribute this software for any
@@ -16,6 +16,7 @@
 */
 
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #ifndef __cplusplus
@@ -37,8 +38,26 @@
 enum {
 	SIMPLEARPEGGIATOR_IN  = 0,
 	SIMPLEARPEGGIATOR_OUT = 1,
-	SIMPLEARPEGGIATOR_GAIN = 2
+	SIMPLEARPEGGIATOR_CHORD = 2,
+	SIMPLEARPEGGIATOR_RANGE = 3,
+	SIMPLEARPEGGIATOR_TIME = 4,
+	SIMPLEARPEGGIATOR_GATE = 5
 };
+
+enum {
+    OCTAVE = 0,
+    MAJOR = 1,
+    MINOR = 2
+} ChordType;
+
+enum {
+    BEAT = 0,
+    BEAT_1_2 = 1,
+    BEAT_1_4 = 2,
+    BEAT_1_8 = 3,
+    BEAT_1_16 = 4,
+    BEAT_1_32 = 5
+} TimeType;
 
 typedef struct {
 	// Features
@@ -46,18 +65,22 @@ typedef struct {
 
 	// Ports
 	const LV2_Atom_Sequence* in_port;
-	LV2_Atom_Sequence*       out_port;
-	float *                  gain;
+	LV2_Atom_Sequence*    out_port;
+	int32_t *             chord;
+	int32_t *             range; /* 1 - 9 octaves */
+	int32_t *             time;
+	float *               gate; /* 0 - 200 % */
 
 	// URIs
 	SimpleArpeggiatorURIs uris;
 } SimpleArpeggiator;
 
-static void
-connect_port(LV2_Handle instance,
-             uint32_t   port,
-             void*      data)
+static void connect_port(
+        LV2_Handle instance,
+        uint32_t   port,
+        void*      data)
 {
+    FILE *f;
 	SimpleArpeggiator* self = (SimpleArpeggiator*)instance;
 	switch (port) {
 	case SIMPLEARPEGGIATOR_IN:
@@ -66,19 +89,28 @@ connect_port(LV2_Handle instance,
 	case SIMPLEARPEGGIATOR_OUT:
 		self->out_port = (LV2_Atom_Sequence*)data;
 		break;
-	case SIMPLEARPEGGIATOR_GAIN:
-		self->gain = (float*)data;
+	case SIMPLEARPEGGIATOR_CHORD:
+		self->chord = (int32_t *)data;
+		break;
+	case SIMPLEARPEGGIATOR_RANGE:
+		self->range = (int32_t *)data;
+		break;
+	case SIMPLEARPEGGIATOR_TIME:
+		self->time = (int32_t *) data;
+		break;
+	case SIMPLEARPEGGIATOR_GATE:
+		self->gate = (float*)data;
 		break;
 	default:
 		break;
 	}
 }
 
-static LV2_Handle
-instantiate(const LV2_Descriptor*     descriptor,
-            double                    rate,
-            const char*               path,
-            const LV2_Feature* const* features)
+static LV2_Handle instantiate(
+        const LV2_Descriptor*     descriptor,
+        double                    rate,
+        const char*               path,
+        const LV2_Feature* const* features)
 {
 	// Allocate and initialise instance structure.
 	SimpleArpeggiator* self = (SimpleArpeggiator*)malloc(sizeof(SimpleArpeggiator));
@@ -105,15 +137,12 @@ instantiate(const LV2_Descriptor*     descriptor,
 	return (LV2_Handle)self;
 }
 
-static void
-cleanup(LV2_Handle instance)
+static void cleanup(LV2_Handle instance)
 {
 	free(instance);
 }
 
-static void
-run(LV2_Handle instance,
-    uint32_t   sample_count)
+static void run(LV2_Handle instance, uint32_t   sample_count)
 {
 	SimpleArpeggiator*     self = (SimpleArpeggiator*)instance;
 	SimpleArpeggiatorURIs* uris = &self->uris;
@@ -153,10 +182,14 @@ run(LV2_Handle instance,
 					newnote.event.time.frames = ev->time.frames;  // Same time
 					newnote.event.body.type   = ev->body.type;    // Same type
 					newnote.event.body.size   = ev->body.size;    // Same size
+		FILE *f = fopen("/tmp/test", "w");
+		int x = *self->range;
+		fprintf(f, "test %d\n", x);
+		fclose(f);
 					
 					newnote.msg[0] = msg[0];      // Same status
-					newnote.msg[1] = msg[1] + *self->gain;  // Pitch up 7 semitones
 					//newnote.msg[1] = msg[1] + 7;  // Pitch up 7 semitones
+					newnote.msg[1] = msg[1] + *self->range;  // Pitch up 7 semitones
 					newnote.msg[2] = msg[2];      // Same velocity
 
 					// Write 5th event
@@ -174,8 +207,7 @@ run(LV2_Handle instance,
 	}
 }
 
-static const void*
-extension_data(const char* uri)
+static const void* extension_data(const char* uri)
 {
 	return NULL;
 }
@@ -191,8 +223,7 @@ static const LV2_Descriptor descriptor = {
 	extension_data
 };
 
-LV2_SYMBOL_EXPORT
-const LV2_Descriptor* lv2_descriptor(uint32_t index)
+LV2_SYMBOL_EXPORT const LV2_Descriptor* lv2_descriptor(uint32_t index)
 {
 	switch (index) {
 	case 0:

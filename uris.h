@@ -1,5 +1,5 @@
 /*
-  LV2 SimpleArpeggiator Example Plugin
+  SimpleArpeggiator LV2 Plugin
   Copyright 2017 Johan Berntsson
 
   Permission to use, copy, modify, and/or distribute this software for any
@@ -23,9 +23,9 @@
 #include "lv2/lv2plug.in/ns/ext/state/state.h"
 
 #define SIMPLEARPEGGIATOR_URI          "https://github.com/johanberntsson/simple-arpeggiator-lv2"
-#define SIMPLEARPEGGIATOR__sample      SIMPLEARPEGGIATOR_URI "#sample"
-#define SIMPLEARPEGGIATOR__applySample SIMPLEARPEGGIATOR_URI "#applySample"
-#define SIMPLEARPEGGIATOR__freeSample  SIMPLEARPEGGIATOR_URI "#freeSample"
+#define EG_SIMPLEARPEGGIATOR_sample      SIMPLEARPEGGIATOR_URI "#sample"
+#define EG_SIMPLEARPEGGIATOR_applySample SIMPLEARPEGGIATOR_URI "#applySample"
+#define EG_SIMPLEARPEGGIATOR_freeSample  SIMPLEARPEGGIATOR_URI "#freeSample"
 
 typedef struct {
 	LV2_URID atom_Blank;
@@ -43,8 +43,7 @@ typedef struct {
 	LV2_URID patch_value;
 } SimpleArpeggiatorURIs;
 
-static inline void
-map_simplearpeggiator_uris(LV2_URID_Map* map, SimpleArpeggiatorURIs* uris)
+static inline void map_simplearpeggiator_uris(LV2_URID_Map* map, SimpleArpeggiatorURIs* uris)
 {
 	uris->atom_Blank         = map->map(map->handle, LV2_ATOM__Blank);
 	uris->atom_Path          = map->map(map->handle, LV2_ATOM__Path);
@@ -52,9 +51,9 @@ map_simplearpeggiator_uris(LV2_URID_Map* map, SimpleArpeggiatorURIs* uris)
 	uris->atom_Sequence      = map->map(map->handle, LV2_ATOM__Sequence);
 	uris->atom_URID          = map->map(map->handle, LV2_ATOM__URID);
 	uris->atom_eventTransfer = map->map(map->handle, LV2_ATOM__eventTransfer);
-	uris->eg_applySample     = map->map(map->handle, SIMPLEARPEGGIATOR__applySample);
-	uris->eg_freeSample      = map->map(map->handle, SIMPLEARPEGGIATOR__freeSample);
-	uris->eg_sample          = map->map(map->handle, SIMPLEARPEGGIATOR__sample);
+	uris->eg_applySample     = map->map(map->handle, EG_SIMPLEARPEGGIATOR_applySample);
+	uris->eg_freeSample      = map->map(map->handle, EG_SIMPLEARPEGGIATOR_freeSample);
+	uris->eg_sample          = map->map(map->handle, EG_SIMPLEARPEGGIATOR_sample);
 	uris->midi_Event         = map->map(map->handle, LV2_MIDI__MidiEvent);
 	uris->patch_Set          = map->map(map->handle, LV2_PATCH__Set);
 	uris->patch_property     = map->map(map->handle, LV2_PATCH__property);

@@ -8,7 +8,7 @@ $(BUNDLE): manifest.ttl simplearpeggiator.ttl simplearpeggiator.so
 	mkdir $(BUNDLE)
 	cp manifest.ttl simplearpeggiator.ttl simplearpeggiator.so $(BUNDLE)
 
-simplearpeggiator.so: simplearpeggiator.c
+simplearpeggiator.so: simplearpeggiator.c uris.h
 	gcc -shared -fPIC -DPIC simplearpeggiator.c `pkg-config --cflags --libs lv2-plugin` -o simplearpeggiator.so
 
 
