@@ -42,6 +42,7 @@
 
 typedef struct {
 	LV2_URID atom_Blank;
+	LV2_URID atom_Float;
 	LV2_URID atom_Object;
 	LV2_URID atom_Path;
 	LV2_URID atom_Resource;
@@ -99,6 +100,11 @@ typedef struct {
 	float *                  range; /* 1 - 9 octaves */
 	float *                  time;
 	float *                  gate; /* 0 - 200 % */
+
+    // Variables to keep track of the tempo information sent by the host
+    double rate;   // Sample rate
+    float  bpm;    // Beats per minute (tempo)
+    float  speed;  // Transport speed (usually 0=stop, 1=play)
 
     // Logger convenience API
     LV2_Log_Logger           logger;
@@ -169,6 +175,7 @@ static LV2_Handle instantiate(
     SimpleArpeggiatorURIs* const uris = &self->uris;
     LV2_URID_Map* const map  = self->map;
 	uris->atom_Blank         = map->map(map->handle, LV2_ATOM__Blank);
+    uris->atom_Float         = map->map(map->handle, LV2_ATOM__Float);
     uris->atom_Object        = map->map(map->handle, LV2_ATOM__Object);
 	uris->atom_Path          = map->map(map->handle, LV2_ATOM__Path);
 	uris->atom_Resource      = map->map(map->handle, LV2_ATOM__Resource);
@@ -198,11 +205,40 @@ static void cleanup(LV2_Handle instance)
 	free(instance);
 }
 
-static void run(LV2_Handle instance, uint32_t   sample_count)
+static void update_position(SimpleArpeggiator* self, const LV2_Atom_Object* obj)
 {
-	SimpleArpeggiator*     self = (SimpleArpeggiator*)instance;
-	SimpleArpeggiatorURIs* uris = &self->uris;
+	const SimpleArpeggiatorURIs* uris = &self->uris;
 
+	// Received new transport position/speed
+	LV2_Atom *beat = NULL, *bpm = NULL, *speed = NULL;
+	lv2_atom_object_get(obj,
+			uris->time_barBeat, &beat,
+			uris->time_beatsPerMinute, &bpm,
+			uris->time_speed, &speed,
+			NULL);
+	if (bpm && bpm->type == uris->atom_Float) {
+		// Tempo changed, update BPM
+		self->bpm = ((LV2_Atom_Float*)bpm)->body;
+	}
+	if (speed && speed->type == uris->atom_Float) {
+		// Speed changed, e.g. 0 (stop) to 1 (play)
+		self->speed = ((LV2_Atom_Float*)speed)->body;
+		//lv2_log_error(&self->logger, "speed %f\n", self->speed);
+	}
+	if (beat && beat->type == uris->atom_Float) {
+		// Received a beat position, synchronise
+		// This hard sync may cause clicks, a real plugin would be more graceful
+		lv2_log_error(&self->logger, "beat!\n");
+	}
+
+}
+
+static void update_midi(
+		SimpleArpeggiator*    self,
+		const uint8_t* const  msg,
+		const uint32_t        out_capacity,
+		const LV2_Atom_Event* ev)
+{
 	enum chordtype chord = (int) *self->chord;
 	int range = (int) *self->range;
 	enum timetype time = (int) *self->chord;
@@ -214,8 +250,49 @@ static void run(LV2_Handle instance, uint32_t   sample_count)
 		uint8_t        msg[3];
 	} MIDINoteEvent;
 
-	// Initially self->out_port contains a Chunk with size set to capacity
+lv2_log_error(&self->logger, "midi start %x\n", msg[0]);
 
+	switch (lv2_midi_message_type(msg)) {
+		case LV2_MIDI_MSG_NOTE_ON:
+		case LV2_MIDI_MSG_NOTE_OFF:
+			// Forward note to output
+			lv2_atom_sequence_append_event(
+					self->out_port, out_capacity, ev);
+
+
+			const uint8_t note = msg[1];
+			if (note <= 127 - 7) {
+				// Make a note one 5th (7 semitones) higher than input
+				MIDINoteEvent newnote;
+
+				// Could simply do newnote.event = *ev here instead...
+				newnote.event.time.frames = ev->time.frames;  // Same time
+				newnote.event.body.type   = ev->body.type;    // Same type
+				newnote.event.body.size   = ev->body.size;    // Same size
+
+				newnote.msg[0] = msg[0];      // Same status
+				//newnote.msg[1] = msg[1] + 7;  // Pitch up 7 semitones
+				newnote.msg[1] = msg[1] + range;  // Pitch up 7 semitones
+				newnote.msg[2] = msg[2];      // Same velocity
+
+				// Write 5th event
+				lv2_atom_sequence_append_event(
+						self->out_port, out_capacity, &newnote.event);
+			}
+			break;
+		default:
+			// Forward all other MIDI events directly
+			lv2_atom_sequence_append_event(
+					self->out_port, out_capacity, ev);
+			break;
+	}
+}
+static void run(LV2_Handle instance, uint32_t   sample_count)
+{
+	SimpleArpeggiator*     self = (SimpleArpeggiator*)instance;
+	SimpleArpeggiatorURIs* uris = &self->uris;
+
+	// Initially self->out_port contains a Chunk with size set to capacity
 	// Get the capacity
 	const uint32_t out_capacity = self->out_port->atom.size;
 
@@ -232,61 +309,11 @@ static void run(LV2_Handle instance, uint32_t   sample_count)
             const LV2_Atom_Object* obj = (const LV2_Atom_Object*)&ev->body;
             if (obj->body.otype == uris->time_Position) {
                 // Received position information, update
-                lv2_log_error(&self->logger, "time \n");
+                update_position(self, obj);
             }
         } else if (ev->body.type == uris->midi_Event) {
 			const uint8_t* const msg = (const uint8_t*)(ev + 1);
-lv2_log_error(&self->logger, "midi start %x\n", msg[0]);
-			switch (lv2_midi_message_type(msg)) {
-			case LV2_MIDI_MSG_NOTE_ON:
-			case LV2_MIDI_MSG_NOTE_OFF:
-				// Forward note to output
-				lv2_atom_sequence_append_event(
-					self->out_port, out_capacity, ev);
-
-
-				const uint8_t note = msg[1];
-				if (note <= 127 - 7) {
-					// Make a note one 5th (7 semitones) higher than input
-					MIDINoteEvent newnote;
-					
-					// Could simply do newnote.event = *ev here instead...
-					newnote.event.time.frames = ev->time.frames;  // Same time
-					newnote.event.body.type   = ev->body.type;    // Same type
-					newnote.event.body.size   = ev->body.size;    // Same size
-					
-					newnote.msg[0] = msg[0];      // Same status
-					//newnote.msg[1] = msg[1] + 7;  // Pitch up 7 semitones
-					newnote.msg[1] = msg[1] + range;  // Pitch up 7 semitones
-					newnote.msg[2] = msg[2];      // Same velocity
-
-					// Write 5th event
-					lv2_atom_sequence_append_event(
-						self->out_port, out_capacity, &newnote.event);
-				}
-				break;
-			case LV2_MIDI_MSG_START:
-			    // sequencer started
-lv2_log_error(&self->logger, "midi start\n");
-			    break;
-			case LV2_MIDI_MSG_STOP:
-			    // sequencer stopped
-lv2_log_error(&self->logger, "midi stop\n");
-			    break;
-			case LV2_MIDI_MSG_CONTINUE:
-			    // sequencer restarted
-lv2_log_error(&self->logger, "midi continue\n");
-			    break;
-			case LV2_MIDI_MSG_CLOCK:
-			    // called 24 times per quarter note
-lv2_log_error(&self->logger, "midi clock\n");
-			    break;
-			default:
-				// Forward all other MIDI events directly
-				lv2_atom_sequence_append_event(
-					self->out_port, out_capacity, ev);
-				break;
-			}
+			update_midi(self, msg, out_capacity, ev);
 		}
 	}
 }
