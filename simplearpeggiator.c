@@ -23,16 +23,44 @@
 #endif
 
 #include <sndfile.h>
-
+#include "lv2/lv2plug.in/ns/ext/atom/atom.h"
 #include "lv2/lv2plug.in/ns/ext/atom/util.h"
+#include "lv2/lv2plug.in/ns/ext/time/time.h"
 #include "lv2/lv2plug.in/ns/ext/midi/midi.h"
+#include "lv2/lv2plug.in/ns/ext/log/logger.h"
 #include "lv2/lv2plug.in/ns/ext/patch/patch.h"
 #include "lv2/lv2plug.in/ns/ext/state/state.h"
 #include "lv2/lv2plug.in/ns/ext/urid/urid.h"
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
+#include "lv2/lv2plug.in/ns/ext/log/log.h"
+#include "arpeggiator.h"
 
-#include "./uris.h"
-#include "./arpeggiator.h"
+#define SIMPLEARPEGGIATOR_URI          "https://github.com/johanberntsson/simple-arpeggiator-lv2"
+#define EG_SIMPLEARPEGGIATOR_sample      SIMPLEARPEGGIATOR_URI "#sample"
+#define EG_SIMPLEARPEGGIATOR_applySample SIMPLEARPEGGIATOR_URI "#applySample"
+#define EG_SIMPLEARPEGGIATOR_freeSample  SIMPLEARPEGGIATOR_URI "#freeSample"
+
+typedef struct {
+	LV2_URID atom_Blank;
+	LV2_URID atom_Object;
+	LV2_URID atom_Path;
+	LV2_URID atom_Resource;
+	LV2_URID atom_Sequence;
+	LV2_URID atom_URID;
+	LV2_URID atom_eventTransfer;
+	LV2_URID eg_applySample;
+	LV2_URID eg_sample;
+	LV2_URID eg_freeSample;
+	LV2_URID midi_Event;
+	LV2_URID patch_Set;
+	LV2_URID patch_property;
+	LV2_URID patch_value;
+    LV2_URID time_Position;
+    LV2_URID time_barBeat;
+    LV2_URID time_beatsPerMinute;
+    LV2_URID time_speed;
+} SimpleArpeggiatorURIs;
+
 
 /* has to correspond to index port numbers in *.ttl */
 enum {
@@ -61,18 +89,22 @@ enum timetype {
 
 typedef struct {
 	// Features
-	LV2_URID_Map* map;
+	LV2_URID_Map*            map;
+    LV2_Log_Log*             log;
 
 	// Ports
 	const LV2_Atom_Sequence* in_port;
-	LV2_Atom_Sequence*    out_port;
-	float *               chord;
-	float *               range; /* 1 - 9 octaves */
-	float *               time;
-	float *               gate; /* 0 - 200 % */
+	LV2_Atom_Sequence*       out_port;
+	float *                  chord;
+	float *                  range; /* 1 - 9 octaves */
+	float *                  time;
+	float *                  gate; /* 0 - 200 % */
+
+    // Logger convenience API
+    LV2_Log_Logger           logger;
 
 	// URIs
-	SimpleArpeggiatorURIs uris;
+	SimpleArpeggiatorURIs    uris;
 } SimpleArpeggiator;
 
 static void connect_port(
@@ -123,6 +155,8 @@ static LV2_Handle instantiate(
 	for (int i = 0; features[i]; ++i) {
 		if (!strcmp(features[i]->URI, LV2_URID__map)) {
 			self->map = (LV2_URID_Map*)features[i]->data;
+        } else if (!strcmp(features[i]->URI, LV2_LOG__log)) {
+            self->log = (LV2_Log_Log*)features[i]->data;
 		}
 	}
 	if (!self->map) {
@@ -131,9 +165,31 @@ static LV2_Handle instantiate(
 		return NULL;
 	}
 
-	// Map URIs and initialise forge/logger
-	map_simplearpeggiator_uris(self->map, &self->uris);
- 
+	// Map URIs
+    SimpleArpeggiatorURIs* const uris = &self->uris;
+    LV2_URID_Map* const map  = self->map;
+	uris->atom_Blank         = map->map(map->handle, LV2_ATOM__Blank);
+    uris->atom_Object        = map->map(map->handle, LV2_ATOM__Object);
+	uris->atom_Path          = map->map(map->handle, LV2_ATOM__Path);
+	uris->atom_Resource      = map->map(map->handle, LV2_ATOM__Resource);
+	uris->atom_Sequence      = map->map(map->handle, LV2_ATOM__Sequence);
+	uris->atom_URID          = map->map(map->handle, LV2_ATOM__URID);
+	uris->atom_eventTransfer = map->map(map->handle, LV2_ATOM__eventTransfer);
+	uris->eg_applySample     = map->map(map->handle, EG_SIMPLEARPEGGIATOR_applySample);
+	uris->eg_freeSample      = map->map(map->handle, EG_SIMPLEARPEGGIATOR_freeSample);
+	uris->eg_sample          = map->map(map->handle, EG_SIMPLEARPEGGIATOR_sample);
+	uris->midi_Event         = map->map(map->handle, LV2_MIDI__MidiEvent);
+	uris->patch_Set          = map->map(map->handle, LV2_PATCH__Set);
+	uris->patch_property     = map->map(map->handle, LV2_PATCH__property);
+	uris->patch_value        = map->map(map->handle, LV2_PATCH__value);
+    uris->time_Position      = map->map(map->handle, LV2_TIME__Position);
+    uris->time_barBeat       = map->map(map->handle, LV2_TIME__barBeat);
+    uris->time_beatsPerMinute= map->map(map->handle, LV2_TIME__beatsPerMinute);
+    uris->time_speed         = map->map(map->handle, LV2_TIME__speed);
+
+	// initialise forge/logger
+    lv2_log_logger_init(&self->logger, self->map, self->log);
+
 	return (LV2_Handle)self;
 }
 
@@ -167,16 +223,27 @@ static void run(LV2_Handle instance, uint32_t   sample_count)
 	lv2_atom_sequence_clear(self->out_port);
 	self->out_port->atom.type = self->in_port->atom.type;
 
+
 	// Read incoming events
-	LV2_ATOM_SEQUENCE_FOREACH(self->in_port, ev) {
-		if (ev->body.type == uris->midi_Event) {
+    LV2_ATOM_SEQUENCE_FOREACH(self->in_port, ev) {
+        lv2_log_error(&self->logger, "event %d\n", ev->body.type);
+        if (ev->body.type == uris->atom_Object ||
+                ev->body.type == uris->atom_Blank) {
+            const LV2_Atom_Object* obj = (const LV2_Atom_Object*)&ev->body;
+            if (obj->body.otype == uris->time_Position) {
+                // Received position information, update
+                lv2_log_error(&self->logger, "time \n");
+            }
+        } else if (ev->body.type == uris->midi_Event) {
 			const uint8_t* const msg = (const uint8_t*)(ev + 1);
+lv2_log_error(&self->logger, "midi start %x\n", msg[0]);
 			switch (lv2_midi_message_type(msg)) {
 			case LV2_MIDI_MSG_NOTE_ON:
 			case LV2_MIDI_MSG_NOTE_OFF:
 				// Forward note to output
 				lv2_atom_sequence_append_event(
 					self->out_port, out_capacity, ev);
+
 
 				const uint8_t note = msg[1];
 				if (note <= 127 - 7) {
@@ -192,7 +259,6 @@ static void run(LV2_Handle instance, uint32_t   sample_count)
 					//newnote.msg[1] = msg[1] + 7;  // Pitch up 7 semitones
 					newnote.msg[1] = msg[1] + range;  // Pitch up 7 semitones
 					newnote.msg[2] = msg[2];      // Same velocity
-			    arpeggiator_midi_start();
 
 					// Write 5th event
 					lv2_atom_sequence_append_event(
@@ -201,14 +267,20 @@ static void run(LV2_Handle instance, uint32_t   sample_count)
 				break;
 			case LV2_MIDI_MSG_START:
 			    // sequencer started
-			    arpeggiator_midi_start();
+lv2_log_error(&self->logger, "midi start\n");
 			    break;
 			case LV2_MIDI_MSG_STOP:
 			    // sequencer stopped
+lv2_log_error(&self->logger, "midi stop\n");
+			    break;
 			case LV2_MIDI_MSG_CONTINUE:
 			    // sequencer restarted
+lv2_log_error(&self->logger, "midi continue\n");
+			    break;
 			case LV2_MIDI_MSG_CLOCK:
 			    // called 24 times per quarter note
+lv2_log_error(&self->logger, "midi clock\n");
+			    break;
 			default:
 				// Forward all other MIDI events directly
 				lv2_atom_sequence_append_event(
@@ -244,3 +316,4 @@ LV2_SYMBOL_EXPORT const LV2_Descriptor* lv2_descriptor(uint32_t index)
 		return NULL;
 	}
 }
+

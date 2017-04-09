@@ -3,7 +3,8 @@
 @prefix lv2:   <http://lv2plug.in/ns/lv2core#> .
 @prefix urid:  <http://lv2plug.in/ns/ext/urid#> .
 @prefix midi:  <http://lv2plug.in/ns/ext/midi#> .
-@prefix epp: <http://lv2plug.in/ns/ext/port-props#> .
+@prefix time:  <http://lv2plug.in/ns/ext/time#> .
+@prefix epp:   <http://lv2plug.in/ns/ext/port-props#> .
 @prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix units: <http://lv2plug.in/ns/extensions/units#> .
@@ -19,7 +20,8 @@
 		a lv2:InputPort ,
 			atom:AtomPort ;
 		atom:bufferType atom:Sequence ;
-		atom:supports midi:MidiEvent ;
+		atom:supports time:Position ;
+#		atom:supports midi:MidiEvent ;
 		lv2:index 0 ;
 		lv2:symbol "in" ;
 		lv2:name "In"
