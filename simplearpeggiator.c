@@ -33,9 +33,11 @@
 
 #include "./uris.h"
 
+/* has to correspond to index port numbers in *.ttl */
 enum {
 	SIMPLEARPEGGIATOR_IN  = 0,
-	SIMPLEARPEGGIATOR_OUT = 1
+	SIMPLEARPEGGIATOR_OUT = 1,
+	SIMPLEARPEGGIATOR_GAIN = 2
 };
 
 typedef struct {
@@ -45,6 +47,7 @@ typedef struct {
 	// Ports
 	const LV2_Atom_Sequence* in_port;
 	LV2_Atom_Sequence*       out_port;
+	float *                  gain;
 
 	// URIs
 	SimpleArpeggiatorURIs uris;
@@ -62,6 +65,9 @@ connect_port(LV2_Handle instance,
 		break;
 	case SIMPLEARPEGGIATOR_OUT:
 		self->out_port = (LV2_Atom_Sequence*)data;
+		break;
+	case SIMPLEARPEGGIATOR_GAIN:
+		self->gain = (float*)data;
 		break;
 	default:
 		break;
@@ -149,7 +155,8 @@ run(LV2_Handle instance,
 					newnote.event.body.size   = ev->body.size;    // Same size
 					
 					newnote.msg[0] = msg[0];      // Same status
-					newnote.msg[1] = msg[1] + 7;  // Pitch up 7 semitones
+					newnote.msg[1] = msg[1] + *self->gain;  // Pitch up 7 semitones
+					//newnote.msg[1] = msg[1] + 7;  // Pitch up 7 semitones
 					newnote.msg[2] = msg[2];      // Same velocity
 
 					// Write 5th event
