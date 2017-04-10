@@ -281,11 +281,10 @@ static void update_arp(
     if(self->speed < 1.0) return;
 
     for (uint32_t i = begin; i < end; ++i) {
-        if (++self->elapsed_len == self->frames_per_beat/4) {
-            //lv2_log_error(&self->logger, "1/4 %d\n", self->arp_index);
+        if (++self->elapsed_len == self->frames_per_beat/2) {
+            //lv2_log_error(&self->logger, "1/2 %d\n", self->arp_index);
 
             if(self->base_note < 128) {
-            lv2_log_error(&self->logger, "1/4 %d\n", self->base_note);
                 MIDINoteEvent newnote;
 
 				newnote.event.time.frames = 0;
@@ -293,6 +292,7 @@ static void update_arp(
 				newnote.event.body.size   = 3;
 				newnote.msg[0] = 0x90;
 				newnote.msg[1] = self->base_note;
+				if(self->arp_index % 2) newnote.msg[1] += 12;
 				newnote.msg[2] = 127;
                 
 				lv2_atom_sequence_append_event(
