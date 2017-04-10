@@ -42,6 +42,7 @@
 
 typedef struct {
 	LV2_URID atom_Blank;
+	LV2_URID atom_Int;
 	LV2_URID atom_Float;
 	LV2_URID atom_Object;
 	LV2_URID atom_Path;
@@ -57,9 +58,11 @@ typedef struct {
 	LV2_URID patch_property;
 	LV2_URID patch_value;
     LV2_URID time_Position;
-    LV2_URID time_barBeat;
-    LV2_URID time_beatsPerMinute;
-    LV2_URID time_speed;
+    LV2_URID time_beatsPerBar; // top number in a time signature, usually 4 (for 4/4)
+    LV2_URID time_beatUnit; // bottom number in a time signature, usually 4 (for 4/4)
+    LV2_URID time_barBeat; // The beat number within the bar, from 0 to beatsPerBar
+    LV2_URID time_beatsPerMinute; // Tempo in beats per minute.
+    LV2_URID time_speed; // fraction of normal speed. 0.0 is stopped, 1.0 is normal speed
 } SimpleArpeggiatorURIs;
 
 typedef struct {
@@ -84,12 +87,12 @@ enum chordtype {
 };
 
 enum timetype {
-    BEAT = 0,
-    BEAT_1_2 = 1,
-    BEAT_1_4 = 2,
-    BEAT_1_8 = 3,
-    BEAT_1_16 = 4,
-    BEAT_1_32 = 5
+    NOTE_WHOLE = 0,
+    NOTE_1_2 = 1,
+    NOTE_1_4 = 2,
+    NOTE_1_8 = 3,
+    NOTE_1_16 = 4,
+    NOTE_1_32 = 5
 };
 
 typedef struct {
@@ -109,7 +112,10 @@ typedef struct {
     double rate;   // Sample rate
     float  bpm;    // Beats per minute (tempo)
     float  speed;  // Transport speed (usually 0=stop, 1=play)
-    uint32_t frames_per_beat;
+    float  beat_unit;  // the note value that counts as one beat
+    float  beats_per_bar;  // 
+    uint32_t frames_per_beat;  
+    uint32_t beat_start_pos; // frame number when the last beat detected
     uint32_t elapsed_len;  // Frames since the start of the last click
 
 
@@ -165,6 +171,7 @@ static void activate(LV2_Handle instance)
     SimpleArpeggiator* self = (SimpleArpeggiator*)instance;
 
     self->elapsed_len = 0;
+    self->beat_start_pos = 0;
     self->base_note = 128;
 }
 
@@ -199,6 +206,7 @@ static LV2_Handle instantiate(
     SimpleArpeggiatorURIs* const uris = &self->uris;
     LV2_URID_Map* const map  = self->map;
 	uris->atom_Blank         = map->map(map->handle, LV2_ATOM__Blank);
+    uris->atom_Int           = map->map(map->handle, LV2_ATOM__Int);
     uris->atom_Float         = map->map(map->handle, LV2_ATOM__Float);
     uris->atom_Object        = map->map(map->handle, LV2_ATOM__Object);
 	uris->atom_Path          = map->map(map->handle, LV2_ATOM__Path);
@@ -214,6 +222,8 @@ static LV2_Handle instantiate(
 	uris->patch_property     = map->map(map->handle, LV2_PATCH__property);
 	uris->patch_value        = map->map(map->handle, LV2_PATCH__value);
     uris->time_Position      = map->map(map->handle, LV2_TIME__Position);
+    uris->time_beatsPerBar   = map->map(map->handle, LV2_TIME__beatsPerBar);
+    uris->time_beatUnit      = map->map(map->handle, LV2_TIME__beatUnit);
     uris->time_barBeat       = map->map(map->handle, LV2_TIME__barBeat);
     uris->time_beatsPerMinute= map->map(map->handle, LV2_TIME__beatsPerMinute);
     uris->time_speed         = map->map(map->handle, LV2_TIME__speed);
@@ -244,30 +254,45 @@ static void update_time(
 
 	// Received new transport position/speed
 	LV2_Atom *beat = NULL, *bpm = NULL, *speed = NULL;
+	LV2_Atom  *beatsperbar = NULL, *beatunit = NULL;
 	lv2_atom_object_get(obj,
 			uris->time_barBeat, &beat,
 			uris->time_beatsPerMinute, &bpm,
 			uris->time_speed, &speed,
+			uris->time_beatsPerBar, &beatsperbar,
+			uris->time_beatUnit, &beatunit,
 			NULL);
 	if (bpm && bpm->type == uris->atom_Float) {
 		// Tempo changed, update BPM
-		self->bpm = ((LV2_Atom_Float*)bpm)->body;
+		self->bpm = ((LV2_Atom_Float*) bpm)->body;
         self->frames_per_beat = 60.0f / self->bpm * self->rate;
+		lv2_log_error(&self->logger, "bpm %f\n", self->bpm);
 	}
 	if (speed && speed->type == uris->atom_Float) {
 		// Speed changed, e.g. 0 (stop) to 1 (play)
-		self->speed = ((LV2_Atom_Float*)speed)->body;
-		//lv2_log_error(&self->logger, "speed %f\n", self->speed);
+		self->speed = ((LV2_Atom_Float*) speed)->body;
+		lv2_log_error(&self->logger, "speed %f\n", self->speed);
+	}
+	if (beatsperbar && beatsperbar->type == uris->atom_Float) {
+		// Number of beats in a bar
+		self->beats_per_bar = ((LV2_Atom_Float*) beatsperbar)->body;
+		lv2_log_error(&self->logger, "beats_per_bar %f\n", self->beats_per_bar);
+	}
+	if (beatunit && beatunit->type == uris->atom_Int) {
+		// Number of beats in a bar
+		self->beat_unit = ((LV2_Atom_Int*) beatunit)->body;
+		lv2_log_error(&self->logger, "beat_unit %f\n", self->beat_unit);
 	}
 	if (beat && beat->type == uris->atom_Float) {
 		// Received a beat position, synchronise
-		// This hard sync may cause clicks, a real plugin would be more graceful
         const float frames_per_beat = 60.0f / self->bpm * self->rate;
         const float bar_beats       = ((LV2_Atom_Float*)beat)->body;
         const float beat_beats      = bar_beats - floorf(bar_beats);
         self->elapsed_len           = beat_beats * frames_per_beat;
+        self->beat_start_pos        = beat_beats * frames_per_beat;
         self->arp_index             = 0;
-		//lv2_log_error(&self->logger, "beat %d\n", self->elapsed_len);
+		lv2_log_error(&self->logger, "beat %f/%f %f\n", 
+		        self->beats_per_bar, self->beat_unit, bar_beats);
 	}
 
 }
@@ -281,8 +306,9 @@ static void update_arp(
     if(self->speed < 1.0) return;
 
     for (uint32_t i = begin; i < end; ++i) {
-        if (++self->elapsed_len == self->frames_per_beat/2) {
-            //lv2_log_error(&self->logger, "1/2 %d\n", self->arp_index);
+        uint32_t elapsed_frames = self->elapsed_len - self->beat_start_pos;
+        if(elapsed_frames % (self->frames_per_beat/2) == 0) {
+            lv2_log_error(&self->logger, "1/2 %d\n", self->arp_index);
 
             if(self->base_note < 128) {
                 MIDINoteEvent newnote;
@@ -300,8 +326,8 @@ static void update_arp(
             }
 
             ++self->arp_index;
-            self->elapsed_len = 0;
         }
+        ++self->elapsed_len;
     }
 }
 

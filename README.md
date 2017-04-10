@@ -6,6 +6,16 @@ INTRODUCTION
 
 This arpeggiator is inspired by the LMMS standard arpeggiator effect. It can be added to effect chains in hosts such as QTractor to provide interesting bass lines and similar effects.
 
+USAGE
+-----
+
+These parameters are supported:
+
+* **chord** three types are supported: octave, major, and minor
+* **range** the arpeggio range in octaves
+* **time** set the length of each arpeggio step, for instance 1/8ths.
+* **gate** the percent of a whole apreggio note that should be played. Seting it to less than 100% can create cool staccato effects.
+
 CODE
 ----
 
@@ -36,6 +46,7 @@ or stand-alone applications.
 RESOURCES
 ---------
 Useful information for LV2 development:
+
 * LV2 spec: http://lv2plug.in/ns/lv2core/
 * Good examples: http://lv2plug.in/book/
 * Outdated but useful info: http://ll-plugins.nongnu.org/lv2pftci/
