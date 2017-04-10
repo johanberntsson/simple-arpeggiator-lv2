@@ -11,19 +11,23 @@ CODE
 
 The code is divided into three parts
 
-User interface:
+**User interface**:
 manifest.ttl and simplearpeggiator.ttl define the input, output
 and control ports. A host like QTractor will create a user interface
 from the control port information which allows the user to adjust
 the arpeggiator parameters.
 
-Plugin:
-simplearpeggiator.c and uris.h handle the lifecycle of the plugin,
+**Plugin**:
+simplearpeggiator.c handles the lifecycle of the plugin, 
 including instantiation, updating of control parameter information
 and providing access of the state information to the host application
 for permanent storage and recovery.
 
-Arpeggiator:
+Events are processed in the run() function, and routed to
+update_midi() for midi on/off messages, and update_time for
+time synchronization messages.
+
+**Arpeggiator**:
 The actual arpeggiator functionality is all in arpeggiator.c, which
 is called from simplearpeggiator.c. This allows the apreggiator to
 be easily reused in future applications, such as other plugin formats

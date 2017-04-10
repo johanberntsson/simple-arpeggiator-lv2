@@ -205,7 +205,7 @@ static void cleanup(LV2_Handle instance)
 	free(instance);
 }
 
-static void update_position(SimpleArpeggiator* self, const LV2_Atom_Object* obj)
+static void update_time(SimpleArpeggiator* self, const LV2_Atom_Object* obj)
 {
 	const SimpleArpeggiatorURIs* uris = &self->uris;
 
@@ -309,7 +309,7 @@ static void run(LV2_Handle instance, uint32_t   sample_count)
             const LV2_Atom_Object* obj = (const LV2_Atom_Object*)&ev->body;
             if (obj->body.otype == uris->time_Position) {
                 // Received position information, update
-                update_position(self, obj);
+                update_time(self, obj);
             }
         } else if (ev->body.type == uris->midi_Event) {
 			const uint8_t* const msg = (const uint8_t*)(ev + 1);
