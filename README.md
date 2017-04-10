@@ -24,7 +24,7 @@ and providing access of the state information to the host application
 for permanent storage and recovery.
 
 Events are processed in the run() function, and routed to
-update_midi() for midi on/off messages, and update_time for
+update_midi() for midi on/off messages, and update_time() for
 time synchronization messages.
 
 **Arpeggiator**:
@@ -35,10 +35,8 @@ or stand-alone applications.
 
 RESOURCES
 ---------
-Some useful information for LV2 development.
-
-    LV2 spec: http://lv2plug.in/ns/lv2core/
-    Good examples: http://lv2plug.in/book/
-    Outdated but useful info: http://ll-plugins.nongnu.org/lv2pftci/
-
-Midi clock: https://en.wikipedia.org/wiki/MIDI_beat_clock
+Useful information for LV2 development:
+* LV2 spec: http://lv2plug.in/ns/lv2core/
+* Good examples: http://lv2plug.in/book/
+* Outdated but useful info: http://ll-plugins.nongnu.org/lv2pftci/
+* Midi clock: https://en.wikipedia.org/wiki/MIDI_beat_clock

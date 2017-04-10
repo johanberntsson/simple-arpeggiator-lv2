@@ -62,6 +62,10 @@ typedef struct {
     LV2_URID time_speed;
 } SimpleArpeggiatorURIs;
 
+typedef struct {
+    LV2_Atom_Event event;
+    uint8_t        msg[3];
+} MIDINoteEvent;
 
 /* has to correspond to index port numbers in *.ttl */
 enum {
@@ -105,6 +109,14 @@ typedef struct {
     double rate;   // Sample rate
     float  bpm;    // Beats per minute (tempo)
     float  speed;  // Transport speed (usually 0=stop, 1=play)
+    uint32_t frames_per_beat;
+    uint32_t elapsed_len;  // Frames since the start of the last click
+
+
+    uint8_t base_note; // the note the current arpeggio is based on
+    uint8_t arp_index; // current note in the arpeggio
+    uint32_t current_start; // start time for current note
+    uint32_t current_stop; // stop time for current note
 
     // Logger convenience API
     LV2_Log_Logger           logger;
@@ -142,6 +154,18 @@ static void connect_port(
 	default:
 		break;
 	}
+}
+
+/**
+ *    The activate() method resets the state completely, so the wave offset is
+ *       zero and the envelope is off.
+ *       */
+static void activate(LV2_Handle instance)
+{
+    SimpleArpeggiator* self = (SimpleArpeggiator*)instance;
+
+    self->elapsed_len = 0;
+    self->base_note = 128;
 }
 
 static LV2_Handle instantiate(
@@ -197,6 +221,11 @@ static LV2_Handle instantiate(
 	// initialise forge/logger
     lv2_log_logger_init(&self->logger, self->map, self->log);
 
+    // Initialise instance fields
+    self->rate       = rate;
+    self->bpm        = 120.0f; // default (will be updated later)
+    self->frames_per_beat = 60.0f / self->bpm * self->rate;
+
 	return (LV2_Handle)self;
 }
 
@@ -205,7 +234,11 @@ static void cleanup(LV2_Handle instance)
 	free(instance);
 }
 
-static void update_time(SimpleArpeggiator* self, const LV2_Atom_Object* obj)
+
+static void update_time(
+        SimpleArpeggiator* self,
+        const LV2_Atom_Object* obj,
+		const LV2_Atom_Event* ev)
 {
 	const SimpleArpeggiatorURIs* uris = &self->uris;
 
@@ -219,6 +252,7 @@ static void update_time(SimpleArpeggiator* self, const LV2_Atom_Object* obj)
 	if (bpm && bpm->type == uris->atom_Float) {
 		// Tempo changed, update BPM
 		self->bpm = ((LV2_Atom_Float*)bpm)->body;
+        self->frames_per_beat = 60.0f / self->bpm * self->rate;
 	}
 	if (speed && speed->type == uris->atom_Float) {
 		// Speed changed, e.g. 0 (stop) to 1 (play)
@@ -228,65 +262,79 @@ static void update_time(SimpleArpeggiator* self, const LV2_Atom_Object* obj)
 	if (beat && beat->type == uris->atom_Float) {
 		// Received a beat position, synchronise
 		// This hard sync may cause clicks, a real plugin would be more graceful
-		lv2_log_error(&self->logger, "beat!\n");
+        const float frames_per_beat = 60.0f / self->bpm * self->rate;
+        const float bar_beats       = ((LV2_Atom_Float*)beat)->body;
+        const float beat_beats      = bar_beats - floorf(bar_beats);
+        self->elapsed_len           = beat_beats * frames_per_beat;
+        self->arp_index             = 0;
+		//lv2_log_error(&self->logger, "beat %d\n", self->elapsed_len);
 	}
 
 }
 
-static void update_midi(
+static void update_arp(
+		SimpleArpeggiator*    self,
+		uint32_t              begin,
+		uint32_t              end,
+		const uint32_t        out_capacity)
+{
+    if(self->speed < 1.0) return;
+
+    for (uint32_t i = begin; i < end; ++i) {
+        if (++self->elapsed_len == self->frames_per_beat/4) {
+            //lv2_log_error(&self->logger, "1/4 %d\n", self->arp_index);
+
+            if(self->base_note < 128) {
+            lv2_log_error(&self->logger, "1/4 %d\n", self->base_note);
+                MIDINoteEvent newnote;
+
+				newnote.event.time.frames = 0;
+				newnote.event.body.type   = self->uris.midi_Event;
+				newnote.event.body.size   = 3;
+				newnote.msg[0] = 0x90;
+				newnote.msg[1] = self->base_note;
+				newnote.msg[2] = 127;
+                
+				lv2_atom_sequence_append_event(
+						self->out_port, out_capacity, &newnote.event);
+            }
+
+            ++self->arp_index;
+            self->elapsed_len = 0;
+        }
+    }
+}
+
+static int update_midi(
 		SimpleArpeggiator*    self,
 		const uint8_t* const  msg,
-		const uint32_t        out_capacity,
-		const LV2_Atom_Event* ev)
+        const uint32_t out_capacity
+		)
 {
-	enum chordtype chord = (int) *self->chord;
-	int range = (int) *self->range;
-	enum timetype time = (int) *self->chord;
-	float gate = *self->gate;
-
-	// Struct for a 3 byte MIDI event, used for writing notes
-	typedef struct {
-		LV2_Atom_Event event;
-		uint8_t        msg[3];
-	} MIDINoteEvent;
-
-lv2_log_error(&self->logger, "midi start %x\n", msg[0]);
+    // return 0 if consumed by this filter
+    lv2_log_error(&self->logger, "midi command %x %d %d\n", msg[0], msg[1], msg[2]);
 
 	switch (lv2_midi_message_type(msg)) {
 		case LV2_MIDI_MSG_NOTE_ON:
+		    // only allow one note at a time
+		    if(self->base_note == 128) {
+                lv2_log_error(&self->logger, "note on %d\n", msg[1]);
+		        self->base_note = msg[1];
+            }
+            return 0;
 		case LV2_MIDI_MSG_NOTE_OFF:
-			// Forward note to output
-			lv2_atom_sequence_append_event(
-					self->out_port, out_capacity, ev);
-
-
-			const uint8_t note = msg[1];
-			if (note <= 127 - 7) {
-				// Make a note one 5th (7 semitones) higher than input
-				MIDINoteEvent newnote;
-
-				// Could simply do newnote.event = *ev here instead...
-				newnote.event.time.frames = ev->time.frames;  // Same time
-				newnote.event.body.type   = ev->body.type;    // Same type
-				newnote.event.body.size   = ev->body.size;    // Same size
-
-				newnote.msg[0] = msg[0];      // Same status
-				//newnote.msg[1] = msg[1] + 7;  // Pitch up 7 semitones
-				newnote.msg[1] = msg[1] + range;  // Pitch up 7 semitones
-				newnote.msg[2] = msg[2];      // Same velocity
-
-				// Write 5th event
-				lv2_atom_sequence_append_event(
-						self->out_port, out_capacity, &newnote.event);
-			}
-			break;
+		    if(self->base_note == msg[1]) {
+                lv2_log_error(&self->logger, "note off %d\n", msg[1]);
+		        self->base_note = 128;
+            }
+            return 0;
 		default:
 			// Forward all other MIDI events directly
-			lv2_atom_sequence_append_event(
-					self->out_port, out_capacity, ev);
-			break;
+			return 1;
 	}
+	return 1;
 }
+
 static void run(LV2_Handle instance, uint32_t   sample_count)
 {
 	SimpleArpeggiator*     self = (SimpleArpeggiator*)instance;
@@ -295,27 +343,35 @@ static void run(LV2_Handle instance, uint32_t   sample_count)
 	// Initially self->out_port contains a Chunk with size set to capacity
 	// Get the capacity
 	const uint32_t out_capacity = self->out_port->atom.size;
-
 	// Write an empty Sequence header to the output
 	lv2_atom_sequence_clear(self->out_port);
 	self->out_port->atom.type = self->in_port->atom.type;
 
 
 	// Read incoming events
+    uint32_t                 last_t = 0;
     LV2_ATOM_SEQUENCE_FOREACH(self->in_port, ev) {
-        lv2_log_error(&self->logger, "event %d\n", ev->body.type);
+        //lv2_log_error(&self->logger, "event %d\n", ev->body.type);
         if (ev->body.type == uris->atom_Object ||
                 ev->body.type == uris->atom_Blank) {
             const LV2_Atom_Object* obj = (const LV2_Atom_Object*)&ev->body;
             if (obj->body.otype == uris->time_Position) {
                 // Received position information, update
-                update_time(self, obj);
+                update_time(self, obj, ev);
             }
         } else if (ev->body.type == uris->midi_Event) {
 			const uint8_t* const msg = (const uint8_t*)(ev + 1);
-			update_midi(self, msg, out_capacity, ev);
+			if(update_midi(self, msg, out_capacity)) {
+                lv2_atom_sequence_append_event(
+                        self->out_port, out_capacity, ev);
+            }
 		}
-	}
+
+        // update for this iteration
+		update_arp(self, last_t, ev->time.frames, out_capacity);
+    }
+    // update for the remainder of the cycle
+    update_arp(self, last_t, sample_count, out_capacity);
 }
 
 static const void* extension_data(const char* uri)
@@ -327,7 +383,7 @@ static const LV2_Descriptor descriptor = {
 	SIMPLEARPEGGIATOR_URI,
 	instantiate,
 	connect_port,
-	NULL,  // activate,
+	activate,
 	run,
 	NULL,  // deactivate,
 	cleanup,
