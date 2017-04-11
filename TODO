@@ -4,7 +4,9 @@ Feature requests/future plans:
 - add free/sort/synch modes
 
 Known bugs:
-
+- bpm changes not detected properly
+- need to add midi note off for gate
+- need to add major and minor chords
 
 Fixed:
 

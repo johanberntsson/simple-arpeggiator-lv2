@@ -75,7 +75,8 @@ typedef struct {
 enum chordtype {
     OCTAVE = 0,
     MAJOR = 1,
-    MINOR = 2
+    MINOR = 2,
+    CHORD_ERROR
 };
 
 enum timetype {
@@ -84,7 +85,8 @@ enum timetype {
     NOTE_1_4 = 2,
     NOTE_1_8 = 3,
     NOTE_1_16 = 4,
-    NOTE_1_32 = 5
+    NOTE_1_32 = 5,
+    NOTE_ERROR
 };
 
 typedef struct {
@@ -98,22 +100,29 @@ typedef struct {
 	float*                   chord_ptr;
 	float*                   range_ptr; /* 1 - 9 octaves */
 	float*                   time_ptr;
-	float*                   gate_ptr; /* 0 - 200 % */
+	float*                   gate_ptr; /* 0 - 100 % */
+
+	// parameters (read from ports)
+	enum chordtype           chord;
+	int                      range;
+	enum timetype            time;
+	float                    gate;
 
     // Variables to keep track of the tempo information sent by the host
-    double rate;   // Sample rate
-    float  bpm;    // Beats per minute (tempo)
-    float  speed;  // Transport speed (usually 0=stop, 1=play)
-    uint32_t beat_unit;  // the note value that counts as one beat
-    uint32_t beats_per_bar;  // 
-    uint32_t frames_per_beat;  
-    uint32_t elapsed_frames;  // Frames since the start of the last click
+    double                   rate;   // Sample rate
+    float                    bpm;    // Beats per minute (tempo)
+    float                    speed;  // Transport speed (usually 0=stop, 1=play)
+    uint32_t                 beat_unit;  // bottom number in a time signature
+    uint32_t                 beats_per_bar;  // top number in a time signature
+    uint32_t                 frames_per_beat; // number of frames in one beat
+    uint32_t                 elapsed_frames;  // Frames since the start of the last click
 
 
-    uint8_t base_note; // the note the current arpeggio is based on
-    uint8_t arp_index; // current note in the arpeggio
-    uint32_t current_start; // start time for current note
-    uint32_t current_stop; // stop time for current note
+    // arpeggio info
+    uint8_t                  base_note; // base note of the current arpeggio
+    uint32_t                 arpeggio_index; 
+    uint32_t                 arpeggio_length; // number of arpeggio notes
+    uint8_t                  arpeggio_notes[10*3];  // max octaves * max notes/octave
 
     // Logger convenience API
     LV2_Log_Logger           logger;
@@ -153,9 +162,52 @@ static void connect_port(
 	}
 }
 
+static void updateParameters(SimpleArpeggiator* self)
+{
+    bool updateArpeggiato = false;
+
+    if(self->range != (int) *self->range_ptr) {
+        self->range = (int) *self->range_ptr;
+        updateArpeggiato = true;
+        lv2_log_error(&self->logger, "new range %d\n", self->range);
+    }
+    if(self->chord != (enum chordtype) *self->chord_ptr) {
+        self->chord = (enum chordtype) *self->chord_ptr;
+        updateArpeggiato = true;
+        lv2_log_error(&self->logger, "new chord %d\n", self->chord);
+    }
+    if(self->time != (enum timetype) *self->time_ptr) {
+        self->time = (enum timetype) *self->time_ptr;
+        updateArpeggiato = true;
+        lv2_log_error(&self->logger, "new time %d\n", self->time);
+    }
+    if(self->gate != *self->gate_ptr) {
+        self->gate = *self->gate_ptr;
+        updateArpeggiato = true;
+        lv2_log_error(&self->logger, "new gate %f\n", self->gate);
+    }
+
+    if(updateArpeggiato) {
+        lv2_log_error(&self->logger, "updating arpeggio\n");
+        int i;
+        switch(self->chord) {
+            case OCTAVE:
+                self->arpeggio_notes[0] = 0;
+                for(i = 1; i < self->range; i++) {
+                    self->arpeggio_notes[i] = self->arpeggio_notes[i - 1] + 12;
+                }
+                //lv2_log_error(&self->logger, "%d %d %d\n", i, self->arpeggio_notes[0], self->arpeggio_notes[1]);
+                self->arpeggio_length = i;
+                break;
+            case MAJOR:
+                break;
+            case MINOR:
+                break;
+        }
+    }
+}
 /**
- *    The activate() method resets the state completely, so the wave offset is
- *       zero and the envelope is off.
+ *    The activate() method resets the state completely
  *       */
 static void activate(LV2_Handle instance)
 {
@@ -163,6 +215,8 @@ static void activate(LV2_Handle instance)
     //fprintf(stderr, "activate\n");
     self->elapsed_frames = 0;
     self->base_note = 128;
+
+    updateParameters(self);
 }
 
 static LV2_Handle instantiate(
@@ -220,6 +274,10 @@ static LV2_Handle instantiate(
     self->bpm        = 120.0f; // default (will be updated later)
     self->frames_per_beat = 60.0f / self->bpm * self->rate;
 
+    // setting parameter defaults to trigger updates in activate later()
+    self->time = NOTE_ERROR;
+    self->chord = CHORD_ERROR;
+
 	return (LV2_Handle)self;
 }
 
@@ -258,6 +316,10 @@ static void update_time(
             // Speed changed, e.g. 0 (stop) to 1 (play)
             self->speed = ((LV2_Atom_Float*) speed)->body;
             //lv2_log_error(&self->logger, "speed %f\n", self->speed);
+            if(self->speed > 0) {
+                // restarted
+                self->arpeggio_index = 0;
+            }
         }
 	}
 	if (beatsperbar && beatsperbar->type == uris->atom_Float) {
@@ -281,6 +343,7 @@ static void update_time(
         const float beat_beats = bar_beats - floorf(bar_beats); // 0.031
         if(bar_beats < 1) {
             // new bar
+            updateParameters(self);
             self->elapsed_frames = beat_beats * self->frames_per_beat; // already processed frames
             //lv2_log_error(&self->logger, "beat %f %d/%d %d\n", beat_beats, self->beats_per_bar, self->beat_unit, self->elapsed_frames);
         }
@@ -302,30 +365,34 @@ static void update_arp(
 {
     if(self->speed < 1.0) return;
 
-    float step = calculateArpeggiatorStep((enum timetype) *self->time_ptr, self->beat_unit, self->beats_per_bar);
-    uint32_t step_in_frames = (self->frames_per_beat * self->beats_per_bar) * step;
+    float step_ratio = calculateArpeggiatorStep((enum timetype) *self->time_ptr, self->beat_unit, self->beats_per_bar);
+    uint32_t step_in_frames = (self->frames_per_beat * self->beats_per_bar) * step_ratio;
 
     for (uint32_t i = begin; i < end; ++i) {
         if(self->elapsed_frames % step_in_frames == 0) {
-            //lv2_log_error(&self->logger, "  %d %d %d \n", self->arp_index, self->elapsed_frames, step_in_frames);
-
             if(self->base_note < 128) {
+                if(self->arpeggio_index >= self->arpeggio_length) {
+                    self->arpeggio_index = 0;
+                }
+
                 MIDINoteEvent newnote;
 
 				newnote.event.time.frames = 0;
 				newnote.event.body.type   = self->uris.midi_Event;
 				newnote.event.body.size   = 3;
 				newnote.msg[0] = 0x90;
-				newnote.msg[1] = self->base_note;
-				if(self->arp_index == 1) newnote.msg[1] += 12;
+				newnote.msg[1] = self->base_note + 
+				    self->arpeggio_notes[self->arpeggio_index % self->arpeggio_length];
 				newnote.msg[2] = 127;
-                
-				lv2_atom_sequence_append_event(
-						self->out_port, out_capacity, &newnote.event);
+
+				if(newnote.msg[1] < 128) {
+                    lv2_atom_sequence_append_event(
+                            self->out_port, out_capacity, &newnote.event);
+                }
+
+                ++self->arpeggio_index;
             }
 
-            ++self->arp_index;
-            if(self->arp_index > 1) self->arp_index = 0;
         }
         ++self->elapsed_frames;
     }
