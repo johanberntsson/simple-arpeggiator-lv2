@@ -107,8 +107,7 @@ typedef struct {
     uint32_t beat_unit;  // the note value that counts as one beat
     uint32_t beats_per_bar;  // 
     uint32_t frames_per_beat;  
-    uint32_t beat_start_pos; // frame number when the last beat detected
-    uint32_t elapsed_len;  // Frames since the start of the last click
+    uint32_t elapsed_frames;  // Frames since the start of the last click
 
 
     uint8_t base_note; // the note the current arpeggio is based on
@@ -161,9 +160,8 @@ static void connect_port(
 static void activate(LV2_Handle instance)
 {
     SimpleArpeggiator* self = (SimpleArpeggiator*)instance;
-
-    self->elapsed_len = 0;
-    self->beat_start_pos = 0;
+    //fprintf(stderr, "activate\n");
+    self->elapsed_frames = 0;
     self->base_note = 128;
 }
 
@@ -249,38 +247,45 @@ static void update_time(
 			uris->time_beatUnit, &beatunit,
 			NULL);
 	if (bpm && bpm->type == uris->atom_Float) {
-		// Tempo changed, update BPM
-		self->bpm = ((LV2_Atom_Float*) bpm)->body;
-		lv2_log_error(&self->logger, "bpm %f\n", self->bpm);
+		if(self->bpm != ((LV2_Atom_Float*) bpm)->body) {
+            // Tempo changed, update BPM
+            self->bpm = ((LV2_Atom_Float*) bpm)->body;
+            //lv2_log_error(&self->logger, "bpm %f\n", self->bpm);
+        }
 	}
 	if (speed && speed->type == uris->atom_Float) {
-		// Speed changed, e.g. 0 (stop) to 1 (play)
-		self->speed = ((LV2_Atom_Float*) speed)->body;
-		lv2_log_error(&self->logger, "speed %f\n", self->speed);
+        if(self->speed != ((LV2_Atom_Float*) speed)->body) {
+            // Speed changed, e.g. 0 (stop) to 1 (play)
+            self->speed = ((LV2_Atom_Float*) speed)->body;
+            //lv2_log_error(&self->logger, "speed %f\n", self->speed);
+        }
 	}
 	if (beatsperbar && beatsperbar->type == uris->atom_Float) {
-		// Number of beats in a bar
-		self->beats_per_bar = (int32_t) ((LV2_Atom_Float*) beatsperbar)->body;
-		lv2_log_error(&self->logger, "beats_per_bar %d\n", self->beats_per_bar);
+		if(self->beats_per_bar != (int32_t) ((LV2_Atom_Float*) beatsperbar)->body) {
+            // Number of beats in a bar changed
+            self->beats_per_bar = (int32_t) ((LV2_Atom_Float*) beatsperbar)->body;
+            self->frames_per_beat = 60.0f / self->bpm * self->rate;
+            //lv2_log_error(&self->logger, "beats_per_bar %d\n", self->beats_per_bar);
+        }
 	}
 	if (beatunit && beatunit->type == uris->atom_Int) {
-		// Number of beats in a bar
-		self->beat_unit = (int32_t) ((LV2_Atom_Int*) beatunit)->body;
-		lv2_log_error(&self->logger, "beat_unit %d\n", self->beat_unit);
+		if(self->beat_unit != (int32_t) ((LV2_Atom_Int*) beatunit)->body) {
+            // Number of beats in a bar changed
+            self->beat_unit = (int32_t) ((LV2_Atom_Int*) beatunit)->body;
+            //lv2_log_error(&self->logger, "beat_unit %d\n", self->beat_unit);
+        }
 	}
 	if (beat && beat->type == uris->atom_Float) {
 		// Received a beat position, synchronise
-        self->frames_per_beat  = 60.0f / self->bpm * self->rate;
-        const float bar_beats  = ((LV2_Atom_Float*)beat)->body;
-        const float beat_beats = bar_beats - floorf(bar_beats);
-        self->elapsed_len      = beat_beats * self->frames_per_beat;
-        self->beat_start_pos   = beat_beats * self->frames_per_beat;
-        self->arp_index        = 0;
-		lv2_log_error(&self->logger, "beat %d/%d %f\n", 
-		        self->beats_per_bar, self->beat_unit, bar_beats);
+        const float bar_beats  = ((LV2_Atom_Float*)beat)->body; // eg. 2.031
+        const float beat_beats = bar_beats - floorf(bar_beats); // 0.031
+        if(bar_beats < 1) {
+            // new bar
+            self->elapsed_frames = beat_beats * self->frames_per_beat; // already processed frames
+            //lv2_log_error(&self->logger, "beat %f %d/%d %d\n", beat_beats, self->beats_per_bar, self->beat_unit, self->elapsed_frames);
+        }
 	}
 
-    self->frames_per_beat = 60.0f / self->bpm * self->rate;
 }
 
 static float calculateArpeggiatorStep(enum timetype type, int beat_unit, int beats_per_bar)
@@ -301,10 +306,8 @@ static void update_arp(
     uint32_t step_in_frames = (self->frames_per_beat * self->beats_per_bar) * step;
 
     for (uint32_t i = begin; i < end; ++i) {
-        uint32_t elapsed_frames = self->elapsed_len - self->beat_start_pos;
-        //if(elapsed_frames % (self->frames_per_beat/2) == 0) {
-        if(elapsed_frames % step_in_frames == 0) {
-            lv2_log_error(&self->logger, "1/2 %d %d %d\n", self->arp_index, step_in_frames, self->frames_per_beat/2);
+        if(self->elapsed_frames % step_in_frames == 0) {
+            //lv2_log_error(&self->logger, "  %d %d %d \n", self->arp_index, self->elapsed_frames, step_in_frames);
 
             if(self->base_note < 128) {
                 MIDINoteEvent newnote;
@@ -314,7 +317,7 @@ static void update_arp(
 				newnote.event.body.size   = 3;
 				newnote.msg[0] = 0x90;
 				newnote.msg[1] = self->base_note;
-				if(self->arp_index % 2) newnote.msg[1] += 12;
+				if(self->arp_index == 1) newnote.msg[1] += 12;
 				newnote.msg[2] = 127;
                 
 				lv2_atom_sequence_append_event(
@@ -322,8 +325,9 @@ static void update_arp(
             }
 
             ++self->arp_index;
+            if(self->arp_index > 1) self->arp_index = 0;
         }
-        ++self->elapsed_len;
+        ++self->elapsed_frames;
     }
 }
 
@@ -334,19 +338,19 @@ static int update_midi(
 		)
 {
     // return 0 if consumed by this filter
-    lv2_log_error(&self->logger, "midi command %x %d %d\n", msg[0], msg[1], msg[2]);
+    //lv2_log_error(&self->logger, "midi command %x %d %d\n", msg[0], msg[1], msg[2]);
 
 	switch (lv2_midi_message_type(msg)) {
 		case LV2_MIDI_MSG_NOTE_ON:
 		    // only allow one note at a time
 		    if(self->base_note == 128) {
-                lv2_log_error(&self->logger, "note on %d\n", msg[1]);
+                //lv2_log_error(&self->logger, "note on %d\n", msg[1]);
 		        self->base_note = msg[1];
             }
             return 0;
 		case LV2_MIDI_MSG_NOTE_OFF:
 		    if(self->base_note == msg[1]) {
-                lv2_log_error(&self->logger, "note off %d\n", msg[1]);
+                //lv2_log_error(&self->logger, "note off %d\n", msg[1]);
 		        self->base_note = 128;
             }
             return 0;
@@ -369,21 +373,22 @@ static void run(LV2_Handle instance, uint32_t   sample_count)
 	lv2_atom_sequence_clear(self->out_port);
 	self->out_port->atom.type = self->in_port->atom.type;
 
+    uint32_t last_t = 0; // range [0,sample_count]
 
 	// Read incoming events
-    uint32_t                 last_t = 0;
     LV2_ATOM_SEQUENCE_FOREACH(self->in_port, ev) {
         //lv2_log_error(&self->logger, "event %d\n", ev->body.type);
         if (ev->body.type == uris->atom_Object ||
                 ev->body.type == uris->atom_Blank) {
             const LV2_Atom_Object* obj = (const LV2_Atom_Object*)&ev->body;
             if (obj->body.otype == uris->time_Position) {
-                // Received position information, update
+                // Received position information (bar/beat/bpm changes)
                 update_time(self, obj, ev);
             }
         } else if (ev->body.type == uris->midi_Event) {
 			const uint8_t* const msg = (const uint8_t*)(ev + 1);
 			if(update_midi(self, msg, out_capacity)) {
+			    // check if midi note_on or note_off
                 lv2_atom_sequence_append_event(
                         self->out_port, out_capacity, ev);
             }
@@ -391,7 +396,9 @@ static void run(LV2_Handle instance, uint32_t   sample_count)
 
         // update for this iteration
 		update_arp(self, last_t, ev->time.frames, out_capacity);
+		last_t = ev->time.frames;
     }
+
     // update for the remainder of the cycle
     update_arp(self, last_t, sample_count, out_capacity);
 }
