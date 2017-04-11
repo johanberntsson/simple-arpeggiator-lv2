@@ -19,28 +19,34 @@
 #include <stdlib.h>
 #include <string.h>
 #ifndef __cplusplus
-#    include <stdbool.h>
+#include <stdbool.h>
 #endif
-
 #include <sndfile.h>
+
+#include "lv2/lv2plug.in/ns/lv2core/lv2.h"
 #include "lv2/lv2plug.in/ns/ext/atom/atom.h"
 #include "lv2/lv2plug.in/ns/ext/atom/util.h"
 #include "lv2/lv2plug.in/ns/ext/time/time.h"
 #include "lv2/lv2plug.in/ns/ext/midi/midi.h"
 #include "lv2/lv2plug.in/ns/ext/log/logger.h"
-#include "lv2/lv2plug.in/ns/ext/patch/patch.h"
-#include "lv2/lv2plug.in/ns/ext/state/state.h"
-#include "lv2/lv2plug.in/ns/ext/urid/urid.h"
-#include "lv2/lv2plug.in/ns/lv2core/lv2.h"
-#include "lv2/lv2plug.in/ns/ext/log/log.h"
+
 #include "arpeggiator.h"
 
-#define SIMPLEARPEGGIATOR_URI          "https://github.com/johanberntsson/simple-arpeggiator-lv2"
-#define EG_SIMPLEARPEGGIATOR_sample      SIMPLEARPEGGIATOR_URI "#sample"
-#define EG_SIMPLEARPEGGIATOR_applySample SIMPLEARPEGGIATOR_URI "#applySample"
-#define EG_SIMPLEARPEGGIATOR_freeSample  SIMPLEARPEGGIATOR_URI "#freeSample"
+#define SIMPLEARPEGGIATOR_URI            \
+    "https://github.com/johanberntsson/simple-arpeggiator-lv2"
+
+/* has to correspond to port index numbers in simplearpeggiator.ttl */
+enum {
+	SIMPLEARPEGGIATOR_IN  = 0,
+	SIMPLEARPEGGIATOR_OUT = 1,
+	SIMPLEARPEGGIATOR_CHORD = 2,
+	SIMPLEARPEGGIATOR_RANGE = 3,
+	SIMPLEARPEGGIATOR_TIME = 4,
+	SIMPLEARPEGGIATOR_GATE = 5
+};
 
 typedef struct {
+    // Data types for communication with host
 	LV2_URID atom_Blank;
 	LV2_URID atom_Int;
 	LV2_URID atom_Float;
@@ -50,13 +56,9 @@ typedef struct {
 	LV2_URID atom_Sequence;
 	LV2_URID atom_URID;
 	LV2_URID atom_eventTransfer;
-	LV2_URID eg_applySample;
-	LV2_URID eg_sample;
-	LV2_URID eg_freeSample;
+	// Midi parameters
 	LV2_URID midi_Event;
-	LV2_URID patch_Set;
-	LV2_URID patch_property;
-	LV2_URID patch_value;
+	// Time parameters
     LV2_URID time_Position;
     LV2_URID time_beatsPerBar; // top number in a time signature, usually 4 (for 4/4)
     LV2_URID time_beatUnit; // bottom number in a time signature, usually 4 (for 4/4)
@@ -70,16 +72,6 @@ typedef struct {
     uint8_t        msg[3];
 } MIDINoteEvent;
 
-/* has to correspond to index port numbers in *.ttl */
-enum {
-	SIMPLEARPEGGIATOR_IN  = 0,
-	SIMPLEARPEGGIATOR_OUT = 1,
-	SIMPLEARPEGGIATOR_CHORD = 2,
-	SIMPLEARPEGGIATOR_RANGE = 3,
-	SIMPLEARPEGGIATOR_TIME = 4,
-	SIMPLEARPEGGIATOR_GATE = 5
-};
-
 enum chordtype {
     OCTAVE = 0,
     MAJOR = 1,
@@ -87,7 +79,7 @@ enum chordtype {
 };
 
 enum timetype {
-    NOTE_WHOLE = 0,
+    NOTE_1_1 = 0,
     NOTE_1_2 = 1,
     NOTE_1_4 = 2,
     NOTE_1_8 = 3,
@@ -103,17 +95,17 @@ typedef struct {
 	// Ports
 	const LV2_Atom_Sequence* in_port;
 	LV2_Atom_Sequence*       out_port;
-	float *                  chord;
-	float *                  range; /* 1 - 9 octaves */
-	float *                  time;
-	float *                  gate; /* 0 - 200 % */
+	float*                   chord_ptr;
+	float*                   range_ptr; /* 1 - 9 octaves */
+	float*                   time_ptr;
+	float*                   gate_ptr; /* 0 - 200 % */
 
     // Variables to keep track of the tempo information sent by the host
     double rate;   // Sample rate
     float  bpm;    // Beats per minute (tempo)
     float  speed;  // Transport speed (usually 0=stop, 1=play)
-    float  beat_unit;  // the note value that counts as one beat
-    float  beats_per_bar;  // 
+    uint32_t beat_unit;  // the note value that counts as one beat
+    uint32_t beats_per_bar;  // 
     uint32_t frames_per_beat;  
     uint32_t beat_start_pos; // frame number when the last beat detected
     uint32_t elapsed_len;  // Frames since the start of the last click
@@ -146,16 +138,16 @@ static void connect_port(
 		self->out_port = (LV2_Atom_Sequence*)data;
 		break;
 	case SIMPLEARPEGGIATOR_CHORD:
-		self->chord = (float *)data;
+		self->chord_ptr = (float *)data;
 		break;
 	case SIMPLEARPEGGIATOR_RANGE:
-		self->range = (float *)data;
+		self->range_ptr = (float *)data;
 		break;
 	case SIMPLEARPEGGIATOR_TIME:
-		self->time = (float *) data;
+		self->time_ptr = (float *) data;
 		break;
 	case SIMPLEARPEGGIATOR_GATE:
-		self->gate = (float*)data;
+		self->gate_ptr = (float*)data;
 		break;
 	default:
 		break;
@@ -214,13 +206,7 @@ static LV2_Handle instantiate(
 	uris->atom_Sequence      = map->map(map->handle, LV2_ATOM__Sequence);
 	uris->atom_URID          = map->map(map->handle, LV2_ATOM__URID);
 	uris->atom_eventTransfer = map->map(map->handle, LV2_ATOM__eventTransfer);
-	uris->eg_applySample     = map->map(map->handle, EG_SIMPLEARPEGGIATOR_applySample);
-	uris->eg_freeSample      = map->map(map->handle, EG_SIMPLEARPEGGIATOR_freeSample);
-	uris->eg_sample          = map->map(map->handle, EG_SIMPLEARPEGGIATOR_sample);
 	uris->midi_Event         = map->map(map->handle, LV2_MIDI__MidiEvent);
-	uris->patch_Set          = map->map(map->handle, LV2_PATCH__Set);
-	uris->patch_property     = map->map(map->handle, LV2_PATCH__property);
-	uris->patch_value        = map->map(map->handle, LV2_PATCH__value);
     uris->time_Position      = map->map(map->handle, LV2_TIME__Position);
     uris->time_beatsPerBar   = map->map(map->handle, LV2_TIME__beatsPerBar);
     uris->time_beatUnit      = map->map(map->handle, LV2_TIME__beatUnit);
@@ -265,7 +251,6 @@ static void update_time(
 	if (bpm && bpm->type == uris->atom_Float) {
 		// Tempo changed, update BPM
 		self->bpm = ((LV2_Atom_Float*) bpm)->body;
-        self->frames_per_beat = 60.0f / self->bpm * self->rate;
 		lv2_log_error(&self->logger, "bpm %f\n", self->bpm);
 	}
 	if (speed && speed->type == uris->atom_Float) {
@@ -275,26 +260,34 @@ static void update_time(
 	}
 	if (beatsperbar && beatsperbar->type == uris->atom_Float) {
 		// Number of beats in a bar
-		self->beats_per_bar = ((LV2_Atom_Float*) beatsperbar)->body;
-		lv2_log_error(&self->logger, "beats_per_bar %f\n", self->beats_per_bar);
+		self->beats_per_bar = (int32_t) ((LV2_Atom_Float*) beatsperbar)->body;
+		lv2_log_error(&self->logger, "beats_per_bar %d\n", self->beats_per_bar);
 	}
 	if (beatunit && beatunit->type == uris->atom_Int) {
 		// Number of beats in a bar
-		self->beat_unit = ((LV2_Atom_Int*) beatunit)->body;
-		lv2_log_error(&self->logger, "beat_unit %f\n", self->beat_unit);
+		self->beat_unit = (int32_t) ((LV2_Atom_Int*) beatunit)->body;
+		lv2_log_error(&self->logger, "beat_unit %d\n", self->beat_unit);
 	}
 	if (beat && beat->type == uris->atom_Float) {
 		// Received a beat position, synchronise
-        const float frames_per_beat = 60.0f / self->bpm * self->rate;
-        const float bar_beats       = ((LV2_Atom_Float*)beat)->body;
-        const float beat_beats      = bar_beats - floorf(bar_beats);
-        self->elapsed_len           = beat_beats * frames_per_beat;
-        self->beat_start_pos        = beat_beats * frames_per_beat;
-        self->arp_index             = 0;
-		lv2_log_error(&self->logger, "beat %f/%f %f\n", 
+        self->frames_per_beat  = 60.0f / self->bpm * self->rate;
+        const float bar_beats  = ((LV2_Atom_Float*)beat)->body;
+        const float beat_beats = bar_beats - floorf(bar_beats);
+        self->elapsed_len      = beat_beats * self->frames_per_beat;
+        self->beat_start_pos   = beat_beats * self->frames_per_beat;
+        self->arp_index        = 0;
+		lv2_log_error(&self->logger, "beat %d/%d %f\n", 
 		        self->beats_per_bar, self->beat_unit, bar_beats);
 	}
 
+    self->frames_per_beat = 60.0f / self->bpm * self->rate;
+}
+
+static float calculateArpeggiatorStep(enum timetype type, int beat_unit, int beats_per_bar)
+{
+    int total_beats = beat_unit * beats_per_bar;
+    int note_length[] = { 1, 2, 4, 8, 16, 32 };
+    return (total_beats * note_length[type]) / beats_per_bar;
 }
 
 static void update_arp(
@@ -305,10 +298,14 @@ static void update_arp(
 {
     if(self->speed < 1.0) return;
 
+    float step = calculateArpeggiatorStep((enum timetype) *self->time_ptr, self->beat_unit, self->beats_per_bar);
+    uint32_t step_in_frames = (self->frames_per_beat * self->beats_per_bar)/step;
+
     for (uint32_t i = begin; i < end; ++i) {
         uint32_t elapsed_frames = self->elapsed_len - self->beat_start_pos;
-        if(elapsed_frames % (self->frames_per_beat/2) == 0) {
-            lv2_log_error(&self->logger, "1/2 %d\n", self->arp_index);
+        //if(elapsed_frames % (self->frames_per_beat/2) == 0) {
+        if(elapsed_frames % step_in_frames == 0) {
+            lv2_log_error(&self->logger, "1/2 %d %d %d\n", self->arp_index, step_in_frames, self->frames_per_beat/2);
 
             if(self->base_note < 128) {
                 MIDINoteEvent newnote;

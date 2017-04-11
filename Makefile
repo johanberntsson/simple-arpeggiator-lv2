@@ -2,6 +2,13 @@ BUNDLE = simplearpeggiator.lv2
 #INSTALL_DIR = /usr/lib/lv2
 INSTALL_DIR = /home/johan/.lv2
 
+all: $(BUNDLE)
+
+test-main: test.c
+	gcc  test.c -lm -o test
+
+test: test-main
+	./test
 
 $(BUNDLE): manifest.ttl simplearpeggiator.ttl simplearpeggiator.so
 	rm -rf $(BUNDLE)
