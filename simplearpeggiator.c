@@ -122,6 +122,8 @@ typedef struct {
     uint8_t                  base_note; // base note of the current arpeggio
     uint32_t                 arpeggio_index; 
     uint32_t                 arpeggio_length; // number of arpeggio notes
+    MIDINoteEvent            arpeggiator_note;
+    uint32_t                 arpeggiator_note_last_frame;
     uint8_t                  arpeggio_notes[10*3];  // max octaves * max notes/octave
 
     // Logger convenience API
@@ -344,7 +346,7 @@ static void update_time(
         if(bar_beats < 1) {
             // new bar
             updateParameters(self);
-            self->elapsed_frames = beat_beats * self->frames_per_beat; // already processed frames
+            //self->elapsed_frames = beat_beats * self->frames_per_beat; // already processed frames
             //lv2_log_error(&self->logger, "beat %f %d/%d %d\n", beat_beats, self->beats_per_bar, self->beat_unit, self->elapsed_frames);
         }
 	}
@@ -369,26 +371,35 @@ static void update_arp(
     uint32_t step_in_frames = (self->frames_per_beat * self->beats_per_bar) * step_ratio;
 
     for (uint32_t i = begin; i < end; ++i) {
+        if(self->elapsed_frames == self->arpeggiator_note_last_frame) {
+            self->arpeggiator_note.msg[0] = 0x80;
+            lv2_atom_sequence_append_event(
+                    self->out_port, out_capacity, &self->arpeggiator_note.event);
+        }
         if(self->elapsed_frames % step_in_frames == 0) {
             if(self->base_note < 128) {
                 if(self->arpeggio_index >= self->arpeggio_length) {
                     self->arpeggio_index = 0;
                 }
 
-                MIDINoteEvent newnote;
 
-				newnote.event.time.frames = 0;
-				newnote.event.body.type   = self->uris.midi_Event;
-				newnote.event.body.size   = 3;
-				newnote.msg[0] = 0x90;
-				newnote.msg[1] = self->base_note + 
+				self->arpeggiator_note.event.time.frames = 0;
+				self->arpeggiator_note.event.body.type   = self->uris.midi_Event;
+				self->arpeggiator_note.event.body.size   = 3;
+				self->arpeggiator_note.msg[0] = 0x90;
+				self->arpeggiator_note.msg[1] = self->base_note + 
 				    self->arpeggio_notes[self->arpeggio_index % self->arpeggio_length];
-				newnote.msg[2] = 127;
+				self->arpeggiator_note.msg[2] = 127;
 
-				if(newnote.msg[1] < 128) {
+				if(self->arpeggiator_note.msg[1] < 128) {
+				    // calculate note off time
+                    self->arpeggiator_note_last_frame = self->elapsed_frames +
+                        (self->gate * step_in_frames) / 100;
+				    // send the note to the midi bus
                     lv2_atom_sequence_append_event(
-                            self->out_port, out_capacity, &newnote.event);
+                            self->out_port, out_capacity, &self->arpeggiator_note.event);
                 }
+
 
                 ++self->arpeggio_index;
             }
