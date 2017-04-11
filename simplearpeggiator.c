@@ -285,9 +285,8 @@ static void update_time(
 
 static float calculateArpeggiatorStep(enum timetype type, int beat_unit, int beats_per_bar)
 {
-    int total_beats = beat_unit * beats_per_bar;
-    int note_length[] = { 1, 2, 4, 8, 16, 32 };
-    return (total_beats * note_length[type]) / beats_per_bar;
+    float note_length[] = { 1, 2, 4, 8, 16, 32 };
+    return beats_per_bar / (note_length[type] * beat_unit);
 }
 
 static void update_arp(
@@ -299,7 +298,7 @@ static void update_arp(
     if(self->speed < 1.0) return;
 
     float step = calculateArpeggiatorStep((enum timetype) *self->time_ptr, self->beat_unit, self->beats_per_bar);
-    uint32_t step_in_frames = (self->frames_per_beat * self->beats_per_bar)/step;
+    uint32_t step_in_frames = (self->frames_per_beat * self->beats_per_bar) * step;
 
     for (uint32_t i = begin; i < end; ++i) {
         uint32_t elapsed_frames = self->elapsed_len - self->beat_start_pos;
