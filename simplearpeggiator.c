@@ -321,6 +321,7 @@ static void update_time(
 		if(self->bpm != ((LV2_Atom_Float*) bpm)->body) {
             // Tempo changed, update BPM
             self->bpm = ((LV2_Atom_Float*) bpm)->body;
+            self->frames_per_beat = 60.0f / self->bpm * self->rate;
             //lv2_log_error(&self->logger, "bpm %f\n", self->bpm);
         }
 	}
@@ -339,7 +340,6 @@ static void update_time(
 		if(self->beats_per_bar != (int32_t) ((LV2_Atom_Float*) beatsperbar)->body) {
             // Number of beats in a bar changed
             self->beats_per_bar = (int32_t) ((LV2_Atom_Float*) beatsperbar)->body;
-            self->frames_per_beat = 60.0f / self->bpm * self->rate;
             //lv2_log_error(&self->logger, "beats_per_bar %d\n", self->beats_per_bar);
         }
 	}

@@ -4,13 +4,14 @@ Feature requests/future plans:
 - add free/sort/synch modes
 
 Known bugs:
-- bpm changes not detected properly
-- need to add midi note off for gate
-- need to add major and minor chords
+- restart doesn't always start exactly on the beat (need synch mode)
 
 Fixed:
 
 - starts one arp step too late
 - cannot restart after pause in the middle of a note (playback)
   Not an error. If you start playback in a middle on a note there is no note-on command
+- bpm changes not detected properly when changed in a sequencer session
+- need to add midi note off for gate
+- need to add major and minor chords
 
