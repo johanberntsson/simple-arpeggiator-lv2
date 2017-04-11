@@ -194,16 +194,27 @@ static void updateParameters(SimpleArpeggiator* self)
         int i;
         switch(self->chord) {
             case OCTAVE:
-                self->arpeggio_notes[0] = 0;
-                for(i = 1; i < self->range; i++) {
-                    self->arpeggio_notes[i] = self->arpeggio_notes[i - 1] + 12;
+                for(i = 0; i < self->range; i++) {
+                    self->arpeggio_notes[i] = 12 * i;
                 }
                 //lv2_log_error(&self->logger, "%d %d %d\n", i, self->arpeggio_notes[0], self->arpeggio_notes[1]);
                 self->arpeggio_length = i;
                 break;
             case MAJOR:
+                for(i = 0; i < self->range; i++) {
+                    self->arpeggio_notes[3 * i + 0] = 12 * i;
+                    self->arpeggio_notes[3 * i + 1] = 12 * i + 4;
+                    self->arpeggio_notes[3 * i + 2] = 12 * i + 3;
+                }
+                self->arpeggio_length = 3 * i;
                 break;
             case MINOR:
+                for(i = 0; i < self->range; i++) {
+                    self->arpeggio_notes[3 * i + 0] = 12 * i;
+                    self->arpeggio_notes[3 * i + 1] = 12 * i + 3;
+                    self->arpeggio_notes[3 * i + 2] = 12 * i + 4;
+                }
+                self->arpeggio_length = 3 * i;
                 break;
         }
     }
