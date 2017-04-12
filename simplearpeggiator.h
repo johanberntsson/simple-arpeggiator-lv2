@@ -1,5 +1,5 @@
 #define SIMPLEARPEGGIATOR_URI            \
-        "https://github.com/johanberntsson/simple-arpeggiator-lv2"
+    "https://github.com/johanberntsson/simple-arpeggiator-lv2"
 
 #define SIMPLEARPEGGIATOR_N_PORTS 6
 /* has to correspond to port index numbers in simplearpeggiator.ttl */
