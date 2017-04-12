@@ -1,9 +1,6 @@
 A simple arpeggiator LV2 module for Linux DAWs
 ===
 
-INTRODUCTION
-------------
-
 This arpeggiator is inspired by the LMMS standard arpeggiator effect. It can be added to effect chains in hosts such as QTractor to provide interesting bass lines and similar effects.
 
 ![SimpleArpeggiator in Qtractor](https://github.com/johanberntsson/simple-arpeggiator-lv2/blob/master/screenshots/plugin_qtractor.png)

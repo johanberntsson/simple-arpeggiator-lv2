@@ -1,7 +1,8 @@
 Feature requests/future plans:
-- add support for cycle (skip every n note), and skip (randomly miss notes)
+- add support for cycle (skip every n step), and skip (randomly miss notes)
 - add up/down/up-down directions
 - add free/sort/synch modes
+- preset load/save from the GUI (with some kind of list for fast selection)
 
 Known bugs:
 - restart doesn't always start exactly on the beat (need synch mode)
