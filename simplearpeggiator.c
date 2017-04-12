@@ -354,6 +354,7 @@ static void update_time(
 
 static float calculateArpeggiatorStep(enum timetype type, int beat_unit, int beats_per_bar)
 {
+    // return the arpeggiator step as a fraction of a bar
     float note_length[] = { 1, 2, 4, 8, 16, 32 };
     return beats_per_bar / (note_length[type] * beat_unit);
 }

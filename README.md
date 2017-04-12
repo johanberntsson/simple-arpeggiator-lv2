@@ -46,7 +46,7 @@ be easily reused in future applications, such as other plugin formats
 or stand-alone applications.
 
 **Graphical User Interface**:
-The optional GUI is implemended in Qt5. The implementation files are simplearpeggiator_gui_qt5.cpp and simplearpeggiator_gui_qt5.h.
+The optional GUI is implemented in Qt5. The implementation files are simplearpeggiator_gui_qt5.cpp and simplearpeggiator_gui_qt5.h.
 
 RESOURCES
 ---------
@@ -55,7 +55,5 @@ Useful information for LV2 development:
 * LV2 spec: http://lv2plug.in/ns/lv2core/
 * Good examples: http://lv2plug.in/book/
 * Outdated but useful info: http://ll-plugins.nongnu.org/lv2pftci/
-* Midi clock: https://en.wikipedia.org/wiki/MIDI_beat_clock
 * GUI examples: https://github.com/badosu/BadAmp
 * GUI with fluid: http://mountainbikesandtrombones.blogspot.com.au/2014/08/making-lv2-plugin-gui-yes-in-inkscape.html
-* Fluid: http://www.fltk.org/doc-1.1/fluid.html

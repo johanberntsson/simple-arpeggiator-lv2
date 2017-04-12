@@ -8,18 +8,13 @@ int tests_run = 0;
 int foo = 7;
 
 static char* test_calculateArpeggiatorStep() {
-    // how big a note is of a full bar with different time signatures
+    // test notes a fraction of a bar in different time signatures
     float d = 0.001;
 	mu_assert("error, 1/1 in 4/4", fabs(calculateArpeggiatorStep(NOTE_1_1, 4, 4) - 1.0) < d);
 	mu_assert("error, 1/2 in 3/4", fabs(calculateArpeggiatorStep(NOTE_1_2, 3, 4) - 0.666) < d);
 	mu_assert("error, 1/8 in 4/4", fabs(calculateArpeggiatorStep(NOTE_1_8, 4, 4) - 0.125) < d);
 	mu_assert("error, 1/32 in 4/4", fabs(calculateArpeggiatorStep(NOTE_1_32, 4, 4) - 0.03125) < d);
 	mu_assert("error, 1/8 in 3/4", fabs(calculateArpeggiatorStep(NOTE_1_8, 3, 4)  - 0.1666) < d);
-	return 0;
-}
-
-static char* test_foo() {
-	mu_assert("error, foo != 7", foo == 7);
 	return 0;
 }
 
