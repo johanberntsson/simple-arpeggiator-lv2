@@ -160,16 +160,16 @@ AmpGui::~AmpGui() {
 }
 
 void AmpGui::chordChanged(bool checked) {
-    int chord = -1;
+    float chord = 0;
     if(!checked) return;
     if(chord_octave->isChecked()) chord = 0;
     if(chord_major->isChecked()) chord = 1;
     if(chord_minor->isChecked()) chord = 2;
-    printf("chord %d\n", chord);
+	write_function(controller, SIMPLEARPEGGIATOR_CHORD, sizeof(gate), 0, &chord);
 }
 
 void AmpGui::timeChanged(bool checked) {
-    int time = -1;
+    float time = 0;
     if(!checked) return;
     if(time_1_1->isChecked()) time = 0;
     if(time_1_2->isChecked()) time = 1;
@@ -177,19 +177,20 @@ void AmpGui::timeChanged(bool checked) {
     if(time_1_8->isChecked()) time = 3;
     if(time_1_16->isChecked()) time = 4;
     if(time_1_32->isChecked()) time = 5;
-    printf("time %d\n", time);
+	write_function(controller, SIMPLEARPEGGIATOR_TIME, sizeof(gate), 0, &time);
 }
 
 void AmpGui::rangeChanged(int value) {
-	int range = range_dial->value();
+	float range = range_dial->value();
 	range_label->setText(QString("Range: %1").arg(range));
+	write_function(controller, SIMPLEARPEGGIATOR_RANGE, sizeof(gate), 0, &range);
 }
 
 void AmpGui::gateChanged(int value) {
 	float gate = gate_dial->value();
 
 	gate_label->setText(QString("Gate: %1 %").arg(gate));
-	write_function(controller, AMP_GAIN, sizeof(gate), 0, &gate);
+	write_function(controller, SIMPLEARPEGGIATOR_GATE, sizeof(gate), 0, &gate);
 }
 
 LV2UI_Handle instantiate(const struct _LV2UI_Descriptor* descriptor,
@@ -247,14 +248,36 @@ void port_event(LV2UI_Handle ui, uint32_t port_index, uint32_t buffer_size,
 	uint32_t format, const void* buffer) {
 	AmpGui* pluginGui = (AmpGui*) ui;
 	float* pval = (float*) buffer;
+    int n;
 
-	if ((format != 0) || (port_index < 0) || (port_index >= AMP_N_PORTS)) {
+	if ((format != 0) || (port_index < 0) || (port_index >= SIMPLEARPEGGIATOR_N_PORTS)) {
 		return;
 	}
 
-	// Multiplication by 10 is to adjust for the dial step quantity
 	// Addition by 0.5 is to round to int correctly
-	pluginGui->gate_dial->setValue((int)((*pval * 10) + 0.5));
+	switch(port_index) {
+        case SIMPLEARPEGGIATOR_CHORD:
+            n = (int) (*pval  + 0.5);
+            if(n == 0) pluginGui->chord_octave->setChecked(true);
+            if(n == 1) pluginGui->chord_major->setChecked(true);
+            if(n == 2) pluginGui->chord_minor->setChecked(true);
+            break;
+        case SIMPLEARPEGGIATOR_TIME:
+            n = (int) (*pval  + 0.5);
+            if(n == 0) pluginGui->time_1_1->setChecked(true);
+            if(n == 1) pluginGui->time_1_2->setChecked(true);
+            if(n == 2) pluginGui->time_1_4->setChecked(true);
+            if(n == 3) pluginGui->time_1_8->setChecked(true);
+            if(n == 4) pluginGui->time_1_16->setChecked(true);
+            if(n == 5) pluginGui->time_1_32->setChecked(true);
+            break;
+        case SIMPLEARPEGGIATOR_RANGE:
+            pluginGui->range_dial->setValue((int)(*pval  + 0.5));
+            break;
+        case SIMPLEARPEGGIATOR_GATE:
+            pluginGui->gate_dial->setValue((int)(*pval  + 0.5));
+            break;
+    }
 }
 
 const void* extension_data(const char* uri) { return NULL; }

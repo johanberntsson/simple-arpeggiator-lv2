@@ -33,16 +33,6 @@
 #include "arpeggiator.h"
 #include "simplearpeggiator.h"
 
-/* has to correspond to port index numbers in simplearpeggiator.ttl */
-enum {
-	SIMPLEARPEGGIATOR_IN  = 0,
-	SIMPLEARPEGGIATOR_OUT = 1,
-	SIMPLEARPEGGIATOR_CHORD = 2,
-	SIMPLEARPEGGIATOR_RANGE = 3,
-	SIMPLEARPEGGIATOR_TIME = 4,
-	SIMPLEARPEGGIATOR_GATE = 5
-};
-
 typedef struct {
     // Data types for communication with host
 	LV2_URID atom_Blank;

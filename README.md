@@ -44,7 +44,7 @@ be easily reused in future applications, such as other plugin formats
 or stand-alone applications.
 
 **Graphical User Interface**:
-The optional GUI is designed with the FLUID IDE. The definition file is gui.fld, and the implementation files are ...
+The optional GUI is implemended in Qt5. The implementation files are simplearpeggiator_gui_qt5.cpp and simplearpeggiator_gui_qt5.h.
 
 RESOURCES
 ---------
