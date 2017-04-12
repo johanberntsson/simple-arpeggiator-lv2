@@ -6,3 +6,9 @@
 	a lv2:Plugin ;
 	lv2:binary <simplearpeggiator.so> ;
 	rdfs:seeAlso <simplearpeggiator.ttl> .
+
+<https://github.com/johanberntsson/simple-arpeggiator-lv2#qt>
+    a ui:Qt5UI ;
+    ui:binary <simplearpeggiator_gui_qt5.so> ;
+    rdfs:seeAlso <simplearpeggiator.ttl> .
+

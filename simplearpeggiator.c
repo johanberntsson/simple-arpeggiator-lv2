@@ -31,9 +31,7 @@
 #include "lv2/lv2plug.in/ns/ext/log/logger.h"
 
 #include "arpeggiator.h"
-
-#define SIMPLEARPEGGIATOR_URI            \
-    "https://github.com/johanberntsson/simple-arpeggiator-lv2"
+#include "simplearpeggiator.h"
 
 /* has to correspond to port index numbers in simplearpeggiator.ttl */
 enum {

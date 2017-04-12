@@ -13,15 +13,15 @@ These parameters are supported:
 
 * **chord** three types are supported: octave, major, and minor
 * **range** the arpeggio range in octaves
-* **time** set the length of each arpeggio step, for instance 1/8ths.
+* **time** set the length of each arpeggio note, for instance 1/8ths.
 * **gate** the percent of a whole apreggio note that should be played. Seting it to less than 100% can create cool staccato effects.
 
 CODE
 ----
 
-The code is divided into three parts
+The code is divided into these logical parts:
 
-**User interface**:
+**Plugin interface**:
 manifest.ttl and simplearpeggiator.ttl define the input, output
 and control ports. A host like QTractor will create a user interface
 from the control port information which allows the user to adjust
@@ -43,6 +43,9 @@ is called from simplearpeggiator.c. This allows the apreggiator to
 be easily reused in future applications, such as other plugin formats
 or stand-alone applications.
 
+**Graphical User Interface**:
+The optional GUI is designed with the FLUID IDE. The definition file is gui.fld, and the implementation files are ...
+
 RESOURCES
 ---------
 Useful information for LV2 development:
@@ -51,3 +54,6 @@ Useful information for LV2 development:
 * Good examples: http://lv2plug.in/book/
 * Outdated but useful info: http://ll-plugins.nongnu.org/lv2pftci/
 * Midi clock: https://en.wikipedia.org/wiki/MIDI_beat_clock
+* GUI examples: https://github.com/badosu/BadAmp
+* GUI with fluid: http://mountainbikesandtrombones.blogspot.com.au/2014/08/making-lv2-plugin-gui-yes-in-inkscape.html
+* Fluid: http://www.fltk.org/doc-1.1/fluid.html

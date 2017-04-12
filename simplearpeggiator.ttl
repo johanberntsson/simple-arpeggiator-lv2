@@ -8,6 +8,12 @@
 @prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix units: <http://lv2plug.in/ns/extensions/units#> .
+@prefix ui:    <http://lv2plug.in/ns/extensions/ui#>.
+
+<https://github.com/johanberntsson/simple-arpeggiator-lv2#qt5>
+    a ui:Qt5UI;
+    ui:binary <simplearpeggiator_gui_qt5.so>;
+    ui:requiredFeature ui:makeResident .
 
 <https://github.com/johanberntsson/simple-arpeggiator-lv2>
 	a lv2:Plugin ;
@@ -16,6 +22,7 @@
 	lv2:project <http://lv2plug.in/ns/lv2> ;
 	lv2:requiredFeature urid:map ;
 	lv2:optionalFeature lv2:hardRTCapable ;
+    ui:ui <https://github.com/johanberntsson/simple-arpeggiator-lv2#qt5>
 	lv2:port [
 		a lv2:InputPort ,
 			atom:AtomPort ;
