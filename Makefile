@@ -1,9 +1,8 @@
 BUNDLE = simplearpeggiator.lv2
-#INSTALL_DIR = /usr/lib/lv2
-INSTALL_DIR = /home/johan/.lv2
+INSTALL_ROOT_DIR = /usr/lib/lv2
+INSTALL_LOCAL_DIR = $(HOME)/.lv2
 
 all: $(BUNDLE)
-	echo $(USER)
 
 gui:  install
 	jalv.qt5 https://github.com/johanberntsson/simple-arpeggiator-lv2
@@ -37,14 +36,24 @@ simplearpeggiator_gui_qt5.so: simplearpeggiator_gui_qt5.cpp simplearpeggiator_gu
 	g++ $< -o $@ -shared -fPIC -Wl,--no-undefined `pkg-config --cflags --libs Qt5Core Qt5Gui Qt5Widgets`
 
 install: $(BUNDLE)
-	mkdir -p $(INSTALL_DIR)
-	rm -rf $(INSTALL_DIR)/$(BUNDLE)
-	cp -R $(BUNDLE) $(INSTALL_DIR)
+ifeq ($(shell whoami), root)
+	mkdir -p $(INSTALL_ROOT_DIR)
+	rm -rf $(INSTALL_ROOT_DIR)/$(BUNDLE)
+	cp -R $(BUNDLE) $(INSTALL_ROOT_DIR)
+else
+	mkdir -p $(INSTALL_LOCAL_DIR)
+	rm -rf $(INSTALL_LOCAL_DIR)/$(BUNDLE)
+	cp -R $(BUNDLE) $(INSTALL_LOCAL_DIR)
+endif
 	mkdir -p ~/.lv2
 	cp -R Simple_Apreggiator_presets.lv2 ~/.lv2
 
 uninstall: 
-	rm -rf $(INSTALL_DIR)/$(BUNDLE)
+ifeq ($(shell whoami), root)
+	rm -rf $(INSTALL_ROOT_DIR)/$(BUNDLE)
+else
+	rm -rf $(INSTALL_LOCAL_DIR)/$(BUNDLE)
+endif
 	rm -rf ~/.lv2/Simple_Apreggiator_presets.lv2
 	
 clean:
