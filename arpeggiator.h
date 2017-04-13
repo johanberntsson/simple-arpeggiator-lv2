@@ -44,5 +44,6 @@ void resetArpeggio();
 void updateArpeggioNotes();
 uint8_t nextNote(uint8_t base_note);
 
+float note_as_fraction_of_bar(int beat_unit, int beats_per_bar);
 
 

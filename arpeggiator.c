@@ -116,3 +116,10 @@ uint8_t nextNote(uint8_t base_note) {
     return note;
 }
 
+float note_as_fraction_of_bar(int beat_unit, int beats_per_bar) {
+    // return the arpeggiator step as a fraction of a bar
+    float note_length[] = { 1, 2, 4, 8, 16, 32 };
+    return beats_per_bar / (note_length[arp_state.time] * beat_unit);
+}
+
+

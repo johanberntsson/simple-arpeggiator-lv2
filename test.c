@@ -1,25 +1,31 @@
+#include <math.h>
 #include <stdio.h>
 #include "minunit.h"
 
-#include "simplearpeggiator.c"
+#include "arpeggiator.c"
 
 int tests_run = 0;
 
 int foo = 7;
 
-static char* test_calculateArpeggiatorStep() {
+static char* test_note_as_fraction_of_bar() {
     // test notes a fraction of a bar in different time signatures
     float d = 0.001;
-    mu_assert("error, 1/1 in 4/4", fabs(calculateArpeggiatorStep(NOTE_1_1, 4, 4) - 1.0) < d);
-    mu_assert("error, 1/2 in 3/4", fabs(calculateArpeggiatorStep(NOTE_1_2, 3, 4) - 0.666) < d);
-    mu_assert("error, 1/8 in 4/4", fabs(calculateArpeggiatorStep(NOTE_1_8, 4, 4) - 0.125) < d);
-    mu_assert("error, 1/32 in 4/4", fabs(calculateArpeggiatorStep(NOTE_1_32, 4, 4) - 0.03125) < d);
-    mu_assert("error, 1/8 in 3/4", fabs(calculateArpeggiatorStep(NOTE_1_8, 3, 4)  - 0.1666) < d);
+    setTime(NOTE_1_1);
+    mu_assert("error, 1/1 in 4/4", fabs(note_as_fraction_of_bar(4, 4) - 1.0) < d);
+    setTime(NOTE_1_2);
+    mu_assert("error, 1/2 in 3/4", fabs(note_as_fraction_of_bar(3, 4) - 0.666) < d);
+    setTime(NOTE_1_8);
+    mu_assert("error, 1/8 in 4/4", fabs(note_as_fraction_of_bar(4, 4) - 0.125) < d);
+    setTime(NOTE_1_32);
+    mu_assert("error, 1/32 in 4/4", fabs(note_as_fraction_of_bar(4, 4) - 0.03125) < d);
+    setTime(NOTE_1_8);
+    mu_assert("error, 1/8 in 3/4", fabs(note_as_fraction_of_bar(3, 4)  - 0.1666) < d);
     return 0;
 }
 
 static char* all_tests() {
-    mu_run_test(test_calculateArpeggiatorStep);
+    mu_run_test(test_note_as_fraction_of_bar);
     return 0;
 }
 

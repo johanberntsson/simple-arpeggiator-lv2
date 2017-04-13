@@ -84,8 +84,8 @@ typedef struct {
 
     // arpeggio info
     uint8_t                  base_note; // base note of the current arpeggio
-    MIDINoteEvent            arpeggiator_note;
-    uint32_t                 arpeggiator_note_last_frame;
+    MIDINoteEvent            arpeggiator_note; // the currently played apreggio note
+    uint32_t                 arpeggiator_note_last_frame; // scheduled note off (frames)
 
     // Logger convenience API
     LV2_Log_Logger           logger;
@@ -284,13 +284,6 @@ static void update_time(
 
 }
 
-static float calculateArpeggiatorStep(enum timetype type, int beat_unit, int beats_per_bar)
-{
-    // return the arpeggiator step as a fraction of a bar
-    float note_length[] = { 1, 2, 4, 8, 16, 32 };
-    return beats_per_bar / (note_length[type] * beat_unit);
-}
-
 static void update_arp(
         SimpleArpeggiator*    self,
         uint32_t              begin,
@@ -299,7 +292,7 @@ static void update_arp(
 {
     if(self->speed < 1.0) return;
 
-    float step_ratio = calculateArpeggiatorStep((enum timetype) *self->time_ptr, self->beat_unit, self->beats_per_bar);
+    float step_ratio = note_as_fraction_of_bar(self->beat_unit, self->beats_per_bar);
     uint32_t step_in_frames = (self->frames_per_beat * self->beats_per_bar) * step_ratio;
 
     for (uint32_t i = begin; i < end; ++i) {
