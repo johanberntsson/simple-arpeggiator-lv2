@@ -18,33 +18,101 @@
 #include <stdint.h>
 #include "arpeggiator.h"
 
-void arpeggiator_midi_start()
-{
-    FILE *f = fopen("/tmp/test", "w");
-    fprintf(f, "midi start\n");
-    fclose(f);
+typedef struct {
+    enum chordtype   chord;
+    int              range;
+    enum timetype    time;
+    float            gate;
+
+    uint32_t         note_index; 
+    uint32_t         arpeggio_length; // number of arpeggio notes
+    uint8_t          arpeggio_notes[10*3];  // max octaves * max notes/octave
+} Arpeggiator;
+
+Arpeggiator arp_state;
+
+float getGate() {
+    return arp_state.gate;
 }
 
-void arpeggiator_midi_stop()
-{
-}
-
-void arpeggiator_midi_continue()
-{
-}
-
-void arpeggiator_midi_note_on(uint8_t note[3])
-{
-}
-
-void arpeggiator_midi_note_off(uint8_t note[3])
-{
-}
-
-int arpeggiator_midi_clock(uint8_t newnote[3])
-{
-    /* return 1 if new note was added, 0 if all notes returned */
-    newnote[0] = 0;
+/* Setters: return 0 if no change, -1 if new value set */
+int setChord(enum chordtype chord) {
+    if(arp_state.chord != chord) {
+        arp_state.chord = chord;
+        return -1;
+    }
     return 0;
+}
+
+int setRange(int range) {
+    if(arp_state.range != range) {
+        arp_state.range = range;
+        return -1;
+    }
+    return 0;
+}
+
+int setTime(enum timetype time) {
+    if(arp_state.time != time) {
+        arp_state.time = time;
+        return -1;
+    }
+    return 0;
+}
+
+int setGate(float gate) {
+    if(arp_state.gate != gate) {
+        arp_state.gate = gate;
+        return -1;
+    }
+    return 0;
+}
+
+void updateArpeggioNotes() {
+    int i;
+    switch(arp_state.chord) {
+        case OCTAVE:
+            for(i = 0; i < arp_state.range; i++) {
+                arp_state.arpeggio_notes[i] = 12 * i;
+            }
+            //lv2_log_error(&self.logger, "%d %d %d\n", i, self.arpeggio_notes[0], self.arpeggio_notes[1]);
+            arp_state.arpeggio_length = i;
+            break;
+        case MAJOR:
+            for(i = 0; i < arp_state.range; i++) {
+                arp_state.arpeggio_notes[3 * i + 0] = 12 * i;
+                arp_state.arpeggio_notes[3 * i + 1] = 12 * i + 4;
+                arp_state.arpeggio_notes[3 * i + 2] = 12 * i + 3;
+            }
+            arp_state.arpeggio_length = 3 * i;
+            break;
+        case MINOR:
+            for(i = 0; i < arp_state.range; i++) {
+                arp_state.arpeggio_notes[3 * i + 0] = 12 * i;
+                arp_state.arpeggio_notes[3 * i + 1] = 12 * i + 3;
+                arp_state.arpeggio_notes[3 * i + 2] = 12 * i + 4;
+            }
+            arp_state.arpeggio_length = 3 * i;
+            break;
+    }
+    resetArpeggio();
+}
+
+void resetArpeggio() {
+    arp_state.note_index = 0;
+}
+
+uint8_t nextNote(uint8_t base_note) {
+    /*
+    if(arp_state.note_index >= arp_state.arpeggio_length) {
+        arp_state.note_index = 0;
+    }
+    */
+
+    uint8_t note =  base_note + arp_state.arpeggio_notes[
+        arp_state.note_index % arp_state.arpeggio_length];
+    
+    ++arp_state.note_index;
+    return note;
 }
 

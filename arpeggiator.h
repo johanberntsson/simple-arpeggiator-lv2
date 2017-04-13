@@ -15,11 +15,34 @@
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
    */
 
-void arpeggiator_midi_start();
-void arpeggiator_midi_stop();
-void arpeggiator_midi_continue();
-void arpeggiator_midi_note_on(uint8_t note[3]);
-void arpeggiator_midi_note_off(uint8_t note[3]);
-/* return 1 if new note was added, should loop until 0 to output all notes */
-int arpeggiator_midi_clock(uint8_t newnote[3]);
+enum chordtype {
+    OCTAVE = 0,
+    MAJOR = 1,
+    MINOR = 2,
+    CHORD_ERROR
+};
+
+enum timetype {
+    NOTE_1_1 = 0,
+    NOTE_1_2 = 1,
+    NOTE_1_4 = 2,
+    NOTE_1_8 = 3,
+    NOTE_1_16 = 4,
+    NOTE_1_32 = 5,
+    NOTE_ERROR
+};
+
+float getGate();
+
+int setChord(enum chordtype chord);
+int setRange(int range);
+int setTime(enum timetype time);
+int setGate(float gate);
+
+
+void resetArpeggio();
+void updateArpeggioNotes();
+uint8_t nextNote(uint8_t base_note);
+
+
 

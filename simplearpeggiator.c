@@ -60,23 +60,6 @@ typedef struct {
     uint8_t        msg[3];
 } MIDINoteEvent;
 
-enum chordtype {
-    OCTAVE = 0,
-    MAJOR = 1,
-    MINOR = 2,
-    CHORD_ERROR
-};
-
-enum timetype {
-    NOTE_1_1 = 0,
-    NOTE_1_2 = 1,
-    NOTE_1_4 = 2,
-    NOTE_1_8 = 3,
-    NOTE_1_16 = 4,
-    NOTE_1_32 = 5,
-    NOTE_ERROR
-};
-
 typedef struct {
     // Features
     LV2_URID_Map*            map;
@@ -90,12 +73,6 @@ typedef struct {
     float*                   time_ptr;
     float*                   gate_ptr; /* 0 - 100 % */
 
-    // parameters (read from ports)
-    enum chordtype           chord;
-    int                      range;
-    enum timetype            time;
-    float                    gate;
-
     // Variables to keep track of the tempo information sent by the host
     double                   rate;   // Sample rate
     float                    bpm;    // Beats per minute (tempo)
@@ -105,14 +82,10 @@ typedef struct {
     uint32_t                 frames_per_beat; // number of frames in one beat
     uint32_t                 elapsed_frames;  // Frames since the start of the last click
 
-
     // arpeggio info
     uint8_t                  base_note; // base note of the current arpeggio
-    uint32_t                 arpeggio_index; 
-    uint32_t                 arpeggio_length; // number of arpeggio notes
     MIDINoteEvent            arpeggiator_note;
     uint32_t                 arpeggiator_note_last_frame;
-    uint8_t                  arpeggio_notes[10*3];  // max octaves * max notes/octave
 
     // Logger convenience API
     LV2_Log_Logger           logger;
@@ -156,55 +129,14 @@ static void updateParameters(SimpleArpeggiator* self)
 {
     bool updateArpeggiato = false;
 
-    if(self->range != (int) *self->range_ptr) {
-        self->range = (int) *self->range_ptr;
-        updateArpeggiato = true;
-        lv2_log_error(&self->logger, "new range %d\n", self->range);
-    }
-    if(self->chord != (enum chordtype) *self->chord_ptr) {
-        self->chord = (enum chordtype) *self->chord_ptr;
-        updateArpeggiato = true;
-        lv2_log_error(&self->logger, "new chord %d\n", self->chord);
-    }
-    if(self->time != (enum timetype) *self->time_ptr) {
-        self->time = (enum timetype) *self->time_ptr;
-        updateArpeggiato = true;
-        lv2_log_error(&self->logger, "new time %d\n", self->time);
-    }
-    if(self->gate != *self->gate_ptr) {
-        self->gate = *self->gate_ptr;
-        updateArpeggiato = true;
-        lv2_log_error(&self->logger, "new gate %f\n", self->gate);
-    }
+    if(setChord((enum chordtype) *self->chord_ptr)) updateArpeggiato = true;
+    if(setRange((int)            *self->range_ptr)) updateArpeggiato = true;
+    if(setTime((enum timetype)   *self->time_ptr))  updateArpeggiato = true;
+    if(setGate(                  *self->gate_ptr))  updateArpeggiato = true;
 
     if(updateArpeggiato) {
         lv2_log_error(&self->logger, "updating arpeggio\n");
-        int i;
-        switch(self->chord) {
-            case OCTAVE:
-                for(i = 0; i < self->range; i++) {
-                    self->arpeggio_notes[i] = 12 * i;
-                }
-                //lv2_log_error(&self->logger, "%d %d %d\n", i, self->arpeggio_notes[0], self->arpeggio_notes[1]);
-                self->arpeggio_length = i;
-                break;
-            case MAJOR:
-                for(i = 0; i < self->range; i++) {
-                    self->arpeggio_notes[3 * i + 0] = 12 * i;
-                    self->arpeggio_notes[3 * i + 1] = 12 * i + 4;
-                    self->arpeggio_notes[3 * i + 2] = 12 * i + 3;
-                }
-                self->arpeggio_length = 3 * i;
-                break;
-            case MINOR:
-                for(i = 0; i < self->range; i++) {
-                    self->arpeggio_notes[3 * i + 0] = 12 * i;
-                    self->arpeggio_notes[3 * i + 1] = 12 * i + 3;
-                    self->arpeggio_notes[3 * i + 2] = 12 * i + 4;
-                }
-                self->arpeggio_length = 3 * i;
-                break;
-        }
+        updateArpeggioNotes();
     }
 }
 /**
@@ -276,8 +208,8 @@ static LV2_Handle instantiate(
     self->frames_per_beat = 60.0f / self->bpm * self->rate;
 
     // setting parameter defaults to trigger updates in activate later()
-    self->time = NOTE_ERROR;
-    self->chord = CHORD_ERROR;
+    setChord(CHORD_ERROR);
+    setTime(NOTE_ERROR);
 
     return (LV2_Handle)self;
 }
@@ -320,7 +252,7 @@ static void update_time(
             //lv2_log_error(&self->logger, "speed %f\n", self->speed);
             if(self->speed > 0) {
                 // restarted
-                self->arpeggio_index = 0;
+                resetArpeggio();
             }
         }
     }
@@ -378,30 +310,21 @@ static void update_arp(
         }
         if(self->elapsed_frames % step_in_frames == 0) {
             if(self->base_note < 128) {
-                if(self->arpeggio_index >= self->arpeggio_length) {
-                    self->arpeggio_index = 0;
-                }
-
-
                 self->arpeggiator_note.event.time.frames = 0;
                 self->arpeggiator_note.event.body.type   = self->uris.midi_Event;
                 self->arpeggiator_note.event.body.size   = 3;
                 self->arpeggiator_note.msg[0] = 0x90;
-                self->arpeggiator_note.msg[1] = self->base_note + 
-                    self->arpeggio_notes[self->arpeggio_index % self->arpeggio_length];
+                self->arpeggiator_note.msg[1] = nextNote(self->base_note);
                 self->arpeggiator_note.msg[2] = 127;
 
                 if(self->arpeggiator_note.msg[1] < 128) {
                     // calculate note off time
                     self->arpeggiator_note_last_frame = self->elapsed_frames +
-                        (self->gate * step_in_frames) / 100;
+                        (getGate() * step_in_frames) / 100;
                     // send the note to the midi bus
                     lv2_atom_sequence_append_event(
                             self->out_port, out_capacity, &self->arpeggiator_note.event);
                 }
-
-
-                ++self->arpeggio_index;
             }
 
         }
