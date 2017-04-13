@@ -1,22 +1,15 @@
-#include <QObject>
-#include <QWidget>
+#include <stdio.h>
+
 #include <QDial>
 #include <QLabel>
 #include <QGroupBox>
-#include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QRadioButton>
-#include <QString>
-
-#include <stdio.h>
 
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
 #include "lv2/lv2plug.in/ns/extensions/ui/ui.h"
 
 #include "simplearpeggiator.h"
-
-#define SIMPLEARPEGGIATOR_UI_URI  \
-    "https://github.com/johanberntsson/simple-arpeggiator-lv2#qt5"
 
 class AmpGui : public QWidget {
     Q_OBJECT
@@ -283,7 +276,7 @@ void port_event(LV2UI_Handle ui, uint32_t port_index, uint32_t buffer_size,
 const void* extension_data(const char* uri) { return NULL; }
 
 static LV2UI_Descriptor descriptor = {
-    SIMPLEARPEGGIATOR_UI_URI, instantiate, cleanup, port_event, extension_data
+    SIMPLEARPEGGIATOR_URI "#qt5", instantiate, cleanup, port_event, extension_data
 };
 
 const LV2UI_Descriptor* lv2ui_descriptor(uint32_t index) {

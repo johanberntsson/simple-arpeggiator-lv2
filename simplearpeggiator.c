@@ -29,6 +29,7 @@
 #include "lv2/lv2plug.in/ns/ext/time/time.h"
 #include "lv2/lv2plug.in/ns/ext/midi/midi.h"
 #include "lv2/lv2plug.in/ns/ext/log/logger.h"
+#include "lv2/lv2plug.in/ns/ext/state/state.h"
 
 #include "arpeggiator.h"
 #include "simplearpeggiator.h"
@@ -97,8 +98,7 @@ typedef struct {
 static void connect_port(
         LV2_Handle instance,
         uint32_t   port,
-        void*      data)
-{
+        void*      data) {
     FILE *f;
     SimpleArpeggiator* self = (SimpleArpeggiator*)instance;
     switch (port) {
@@ -125,8 +125,7 @@ static void connect_port(
     }
 }
 
-static void updateParameters(SimpleArpeggiator* self)
-{
+static void updateParameters(SimpleArpeggiator* self) {
     bool updateArpeggiato = false;
 
     if(setChord((enum chordtype) *self->chord_ptr)) updateArpeggiato = true;
@@ -139,11 +138,9 @@ static void updateParameters(SimpleArpeggiator* self)
         updateArpeggioNotes();
     }
 }
-/**
- *    The activate() method resets the state completely
- *       */
-static void activate(LV2_Handle instance)
-{
+
+// The activate() method resets the state completely
+static void activate(LV2_Handle instance) {
     SimpleArpeggiator* self = (SimpleArpeggiator*)instance;
     //fprintf(stderr, "activate\n");
     self->elapsed_frames = 0;
@@ -156,8 +153,7 @@ static LV2_Handle instantiate(
         const LV2_Descriptor*     descriptor,
         double                    rate,
         const char*               path,
-        const LV2_Feature* const* features)
-{
+        const LV2_Feature* const* features) {
     // Allocate and initialise instance structure.
     SimpleArpeggiator* self = (SimpleArpeggiator*)malloc(sizeof(SimpleArpeggiator));
     if (!self) {
@@ -214,8 +210,7 @@ static LV2_Handle instantiate(
     return (LV2_Handle)self;
 }
 
-static void cleanup(LV2_Handle instance)
-{
+static void cleanup(LV2_Handle instance) {
     free(instance);
 }
 
@@ -223,8 +218,7 @@ static void cleanup(LV2_Handle instance)
 static void update_time(
         SimpleArpeggiator* self,
         const LV2_Atom_Object* obj,
-        const LV2_Atom_Event* ev)
-{
+        const LV2_Atom_Event* ev) {
     const SimpleArpeggiatorURIs* uris = &self->uris;
 
     // Received new transport position/speed
@@ -288,8 +282,7 @@ static void update_arp(
         SimpleArpeggiator*    self,
         uint32_t              begin,
         uint32_t              end,
-        const uint32_t        out_capacity)
-{
+        const uint32_t        out_capacity) {
     if(self->speed < 1.0) return;
 
     float step_ratio = note_as_fraction_of_bar(self->beat_unit, self->beats_per_bar);
@@ -329,8 +322,7 @@ static int update_midi(
         SimpleArpeggiator*    self,
         const uint8_t* const  msg,
         const uint32_t out_capacity
-        )
-{
+        ) {
     // return 0 if consumed by this filter
     //lv2_log_error(&self->logger, "midi command %x %d %d\n", msg[0], msg[1], msg[2]);
 
@@ -355,8 +347,7 @@ static int update_midi(
     return 1;
 }
 
-static void run(LV2_Handle instance, uint32_t   sample_count)
-{
+static void run(LV2_Handle instance, uint32_t   sample_count) {
     SimpleArpeggiator*     self = (SimpleArpeggiator*)instance;
     SimpleArpeggiatorURIs* uris = &self->uris;
 
@@ -397,8 +388,68 @@ static void run(LV2_Handle instance, uint32_t   sample_count)
     update_arp(self, last_t, sample_count, out_capacity);
 }
 
+
+static LV2_State_Status state_save(
+        LV2_Handle                instance,
+        LV2_State_Store_Function  store,
+        LV2_State_Handle          handle,
+        uint32_t                  flags,
+        const LV2_Feature* const* features) {
+    SimpleArpeggiator* self = (SimpleArpeggiator*) instance;
+    if (!self) {
+        return LV2_STATE_SUCCESS;
+    }
+
+    /* TODO: restore instance info
+    store(handle, self->uris.ui_spp,
+            (void*)&self->ui_spp, sizeof(uint32_t),
+            self->uris.atom_Int,
+            LV2_STATE_IS_POD);
+
+    store(handle, self->uris.ui_amp,
+            (void*)&self->ui_amp, sizeof(float),
+            self->uris.atom_Float,
+            LV2_STATE_IS_POD);
+    */
+
+    return LV2_STATE_SUCCESS;
+}
+
+static LV2_State_Status state_restore(
+        LV2_Handle                  instance,
+        LV2_State_Retrieve_Function retrieve,
+        LV2_State_Handle            handle,
+        uint32_t                    flags,
+        const LV2_Feature* const*   features) {
+    SimpleArpeggiator* self = (SimpleArpeggiator*) instance;
+
+    size_t   size;
+    uint32_t type;
+    uint32_t valflags;
+
+    /* TODO: store instance info
+    const void* spp = retrieve(
+            handle, self->uris.ui_spp, &size, &type, &valflags);
+    if (spp && size == sizeof(uint32_t) && type == self->uris.atom_Int) {
+        self->ui_spp              = *((const uint32_t*)spp);
+    }
+
+    const void* amp = retrieve(
+            handle, self->uris.ui_amp, &size, &type, &valflags);
+    if (amp && size == sizeof(float) && type == self->uris.atom_Float) {
+        self->ui_amp              = *((const float*)amp);
+    }
+    */
+
+    return LV2_STATE_SUCCESS;
+}
+
 static const void* extension_data(const char* uri)
 {
+    static const LV2_State_Interface state = { state_save, state_restore };
+    if (!strcmp(uri, LV2_STATE__interface)) {
+        return &state;
+    }
     return NULL;
 }
 
