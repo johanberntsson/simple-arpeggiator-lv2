@@ -20,8 +20,8 @@ These parameters are supported:
 * **chord** three types are supported: octave, major, and minor
 * **range** the arpeggio range in octaves
 * **time** set the length of each arpeggio note, for instance 1/8ths.
-* **gate** the percent of a whole apreggio note that should be played. Seting it to less than 100% can create cool staccato effects
-* **cycle** cycle will jump over 0-6 steps in the arpeggio
+* **gate** the percent of a whole apreggio note that should be played. Setting it to less than 100% can create cool staccato effects
+* **cycle** cycle will jump over the 1-6th step in the arpeggio
 * **skip** skip will cause the arpeggio to pause randomly if set to more than 0%
 * **dir** controls how the arpeggio is played: up, down, or up-down
 

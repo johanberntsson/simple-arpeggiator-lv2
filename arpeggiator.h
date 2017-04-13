@@ -33,9 +33,9 @@ enum timetype {
 };
 
 enum dirtype {
-    UP = 0,
-    DOWN = 1,
-    UPDOWN = 2,
+    DIR_UP = 0,
+    DIR_DOWN = 1,
+    DIR_UPDOWN = 2,
     DIR_ERROR
 };
 

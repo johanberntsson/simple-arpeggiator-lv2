@@ -14,8 +14,12 @@
    ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
    OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
    */
+
+#include <time.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
+
 #include "arpeggiator.h"
 
 typedef struct {
@@ -29,7 +33,7 @@ typedef struct {
 
     uint32_t         note_index; 
     uint32_t         arpeggio_length; // number of arpeggio notes
-    uint8_t          arpeggio_notes[10*3];  // max octaves * max notes/octave
+    uint8_t          arpeggio_notes[2*10*3];  // max octaves*max notes/octave*2(up-down)
 } Arpeggiator;
 
 Arpeggiator arp_state;
@@ -122,23 +126,47 @@ void updateArpeggioNotes() {
             arp_state.arpeggio_length = 3 * i;
             break;
     }
-    resetArpeggio();
+
+    if(arp_state.dir == DIR_DOWN) {
+        // reverse the order
+        for(i = 0; i < arp_state.arpeggio_length/2; i++) {
+            uint8_t swap = arp_state.arpeggio_notes[i];
+            arp_state.arpeggio_notes[i] =
+                arp_state.arpeggio_notes[arp_state.arpeggio_length - i];
+            arp_state.arpeggio_notes[arp_state.arpeggio_length - i] = swap;
+        }
+
+    }
+
+    if(arp_state.dir == DIR_UPDOWN) {
+        for(i = 0; i < arp_state.arpeggio_length; i++) {
+            arp_state.arpeggio_notes[2 * arp_state.arpeggio_length - i] = 
+                arp_state.arpeggio_notes[i];
+        }
+        resetArpeggio();
+    }
 }
 
 void resetArpeggio() {
+    srandom(time(NULL));
     arp_state.note_index = 0;
 }
 
 uint8_t nextNote(uint8_t base_note) {
-    /*
-    if(arp_state.note_index >= arp_state.arpeggio_length) {
-        arp_state.note_index = 0;
-    }
-    */
-
     uint8_t note =  base_note + arp_state.arpeggio_notes[
         arp_state.note_index % arp_state.arpeggio_length];
-    
+
+    if(arp_state.cycle > 0) {
+        if((arp_state.note_index % arp_state.arpeggio_length) ==
+                (arp_state.cycle % arp_state.arpeggio_length)) {
+            ++arp_state.note_index;
+        }
+    }
+
+    if((random() % 100) < arp_state.skip) {
+        note = 128; 
+    }
+
     ++arp_state.note_index;
     return note;
 }
@@ -148,5 +176,4 @@ float note_as_fraction_of_bar(int beat_unit, int beats_per_bar) {
     float note_length[] = { 1, 2, 4, 8, 16, 32 };
     return beats_per_bar / (note_length[arp_state.time] * beat_unit);
 }
-
 

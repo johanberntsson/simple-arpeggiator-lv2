@@ -221,6 +221,7 @@ static LV2_Handle instantiate(
     // setting parameter defaults to trigger updates in activate later()
     setChord(CHORD_ERROR);
     setTime(NOTE_ERROR);
+    setDir(DIR_ERROR);
 
     return (LV2_Handle)self;
 }

@@ -182,7 +182,7 @@ SimpleArpeggiatorGUI::SimpleArpeggiatorGUI(QWidget* parent)
         cycle_group = new QGroupBox();
         cycle_label = new QLabel("cycle");
         cycle_dial = new QDial();
-        cycle_dial->setRange(1, 6);
+        cycle_dial->setRange(0, 6);
         cycle_dial->setNotchesVisible(true);
         cycle_spacer = new QSpacerItem(20,40,QSizePolicy::Minimum, QSizePolicy::Expanding);
         cycle_layout = new QVBoxLayout();
@@ -213,7 +213,7 @@ SimpleArpeggiatorGUI::SimpleArpeggiatorGUI(QWidget* parent)
         time_group->setToolTip("The length of each arpeggio note");
         range_group->setToolTip("The arpeggio range in octaves");
         gate_group->setToolTip("The percentiage of a whole apreggio note that should be played. Seting it to less than 100% can create cool staccato effects.");
-        cycle_group->setToolTip("Cycle will jump over 0-6 steps in the arpeggio");
+        cycle_group->setToolTip("Cycle will jump over the 1-6th step in the arpeggio");
         skip_group->setToolTip("Skip will cause the arpeggio to pause randomly if set to more than 0%");
 #endif
 
@@ -266,13 +266,13 @@ void SimpleArpeggiatorGUI::gateChanged(int value) {
 
 void SimpleArpeggiatorGUI::cycleChanged(int value) {
     float cycle = cycle_dial->value();
-    cycle_label->setText(QString("cycle: %1 %").arg(cycle));
+    cycle_label->setText(QString("Cycle: %1").arg(cycle));
     write_function(controller, SIMPLEARPEGGIATOR_CYCLE, sizeof(cycle), 0, &cycle);
 }
 
 void SimpleArpeggiatorGUI::skipChanged(int value) {
     float skip = skip_dial->value();
-    gate_label->setText(QString("Gate: %1 %").arg(skip));
+    skip_label->setText(QString("Skip: %1 %").arg(skip));
     write_function(controller, SIMPLEARPEGGIATOR_SKIP, sizeof(skip), 0, &skip);
 }
 
