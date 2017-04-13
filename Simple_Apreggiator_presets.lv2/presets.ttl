@@ -14,11 +14,20 @@
 		lv2:symbol "chordtype" ;
 		pset:value 0.0
 	] , [
+		lv2:symbol "cycle" ;
+		pset:value 0.0
+	] , [
+		lv2:symbol "direction" ;
+		pset:value 0.0
+	] , [
 		lv2:symbol "gate" ;
 		pset:value 100.0
 	] , [
 		lv2:symbol "range" ;
 		pset:value 2.0
+	] , [
+		lv2:symbol "skip" ;
+		pset:value 0.0
 	] , [
 		lv2:symbol "time" ;
 		pset:value 3.0
@@ -32,11 +41,47 @@
 		lv2:symbol "chordtype" ;
 		pset:value 1.0
 	] , [
+		lv2:symbol "cycle" ;
+		pset:value 0.0
+	] , [
+		lv2:symbol "direction" ;
+		pset:value 0.0
+	] , [
 		lv2:symbol "gate" ;
 		pset:value 100.0
 	] , [
 		lv2:symbol "range" ;
 		pset:value 3.0
+	] , [
+		lv2:symbol "skip" ;
+		pset:value 0.0
+	] , [
+		lv2:symbol "time" ;
+		pset:value 4.0
+	] .
+
+<complex-random-chords.ttl>
+	a pset:Preset ;
+	lv2:appliesTo <https://github.com/johanberntsson/simple-arpeggiator-lv2> ;
+	rdfs:label "complex-random-chords" ;
+	lv2:port [
+		lv2:symbol "chordtype" ;
+		pset:value 1.0
+	] , [
+		lv2:symbol "cycle" ;
+		pset:value 1.0
+	] , [
+		lv2:symbol "direction" ;
+		pset:value 2.0
+	] , [
+		lv2:symbol "gate" ;
+		pset:value 65.0
+	] , [
+		lv2:symbol "range" ;
+		pset:value 3.0
+	] , [
+		lv2:symbol "skip" ;
+		pset:value 23.0
 	] , [
 		lv2:symbol "time" ;
 		pset:value 4.0

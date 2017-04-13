@@ -16,3 +16,8 @@
 	a pset:Preset ;
 	rdfs:seeAlso <presets.ttl> .
 
+<complex-random-chords.ttl>
+	lv2:appliesTo <https://github.com/johanberntsson/simple-arpeggiator-lv2> ;
+	a pset:Preset ;
+	rdfs:seeAlso <presets.ttl> .
+

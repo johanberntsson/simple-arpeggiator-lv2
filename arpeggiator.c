@@ -143,8 +143,9 @@ void updateArpeggioNotes() {
             arp_state.arpeggio_notes[2 * arp_state.arpeggio_length - i] = 
                 arp_state.arpeggio_notes[i];
         }
-        resetArpeggio();
+        arp_state.arpeggio_length = 2 * arp_state.arpeggio_length;
     }
+    resetArpeggio();
 }
 
 void resetArpeggio() {
