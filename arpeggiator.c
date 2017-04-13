@@ -23,6 +23,9 @@ typedef struct {
     int              range;
     enum timetype    time;
     float            gate;
+    int              cycle;
+    float            skip;
+    enum dirtype     dir;
 
     uint32_t         note_index; 
     uint32_t         arpeggio_length; // number of arpeggio notes
@@ -63,6 +66,30 @@ int setTime(enum timetype time) {
 int setGate(float gate) {
     if(arp_state.gate != gate) {
         arp_state.gate = gate;
+        return -1;
+    }
+    return 0;
+}
+
+int setCycle(int cycle) {
+    if(arp_state.cycle != cycle) {
+        arp_state.cycle = cycle;
+        return -1;
+    }
+    return 0;
+}
+
+int setSkip(float skip) {
+    if(arp_state.skip != skip) {
+        arp_state.skip = skip;
+        return -1;
+    }
+    return 0;
+}
+
+int setDir(enum dirtype dir) {
+    if(arp_state.dir != dir) {
+        arp_state.dir = dir;
         return -1;
     }
     return 0;

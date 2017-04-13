@@ -73,6 +73,9 @@ typedef struct {
     float*                   range_ptr; /* 1 - 9 octaves */
     float*                   time_ptr;
     float*                   gate_ptr; /* 0 - 100 % */
+    float*                   cycle_ptr;  /* 0 - 6 notes to skip */
+    float*                   skip_ptr; /* 0 - 100 % */
+    float*                   dir_ptr; 
 
     // Variables to keep track of the tempo information sent by the host
     double                   rate;   // Sample rate
@@ -120,6 +123,15 @@ static void connect_port(
         case SIMPLEARPEGGIATOR_GATE:
             self->gate_ptr = (float*)data;
             break;
+        case SIMPLEARPEGGIATOR_CYCLE:
+            self->cycle_ptr = (float*)data;
+            break;
+        case SIMPLEARPEGGIATOR_SKIP:
+            self->skip_ptr = (float*)data;
+            break;
+        case SIMPLEARPEGGIATOR_DIR:
+            self->dir_ptr = (float*)data;
+            break;
         default:
             break;
     }
@@ -132,6 +144,9 @@ static void updateParameters(SimpleArpeggiator* self) {
     if(setRange((int)            *self->range_ptr)) updateArpeggiato = true;
     if(setTime((enum timetype)   *self->time_ptr))  updateArpeggiato = true;
     if(setGate(                  *self->gate_ptr))  updateArpeggiato = true;
+    if(setCycle((int)            *self->cycle_ptr)) updateArpeggiato = true;
+    if(setSkip(                  *self->skip_ptr))  updateArpeggiato = true;
+    if(setDir((enum dirtype)     *self->dir_ptr))   updateArpeggiato = true;
 
     if(updateArpeggiato) {
         lv2_log_error(&self->logger, "updating arpeggio\n");

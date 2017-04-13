@@ -1,6 +1,4 @@
 Feature requests/future plans:
-- add support for cycle (skip every n step), and skip (randomly miss notes)
-- add up/down/up-down directions
 - add free/sort/synch modes
 
 Known bugs:
@@ -8,6 +6,8 @@ Known bugs:
 
 Fixed:
 
+- add support for cycle (skip every n step), and skip (randomly miss notes)
+- add up/down/up-down directions
 - starts one arp step too late
 - preset load/save from the GUI (with some kind of list for fast selection)
 - cannot restart after pause in the middle of a note (playback)

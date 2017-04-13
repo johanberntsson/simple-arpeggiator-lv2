@@ -32,12 +32,22 @@ enum timetype {
     NOTE_ERROR
 };
 
+enum dirtype {
+    UP = 0,
+    DOWN = 1,
+    UPDOWN = 2,
+    DIR_ERROR
+};
+
 float getGate();
 
 int setChord(enum chordtype chord);
 int setRange(int range);
 int setTime(enum timetype time);
 int setGate(float gate);
+int setCycle(int range);
+int setSkip(float gate);
+int setDir(enum dirtype time);
 
 
 void resetArpeggio();

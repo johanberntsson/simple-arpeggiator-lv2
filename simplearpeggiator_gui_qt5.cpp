@@ -11,13 +11,16 @@
 
 #include "simplearpeggiator.h"
 
-class AmpGui : public QWidget {
+class SimpleArpeggiatorGUI : public QWidget {
     Q_OBJECT
 
     public:
-        AmpGui(QWidget* parent = 0);
-        ~AmpGui();
+        SimpleArpeggiatorGUI(QWidget* parent = 0);
+        ~SimpleArpeggiatorGUI();
         QHBoxLayout* layout;
+        QVBoxLayout* v1_layout;
+        QVBoxLayout* v2_layout;
+        QVBoxLayout* v3_layout;
 
         QLabel* chord_label;
         QRadioButton* chord_octave;
@@ -26,6 +29,14 @@ class AmpGui : public QWidget {
         QGroupBox* chord_group;
         QVBoxLayout* chord_layout;
         QSpacerItem *chord_spacer;
+
+        QLabel* dir_label;
+        QRadioButton* dir_up;
+        QRadioButton* dir_down;
+        QRadioButton* dir_updown;
+        QGroupBox* dir_group;
+        QVBoxLayout* dir_layout;
+        QSpacerItem *dir_spacer;
 
         QLabel* time_label;
         QRadioButton* time_1_1;
@@ -50,20 +61,35 @@ class AmpGui : public QWidget {
         QVBoxLayout* gate_layout;
         QSpacerItem *gate_spacer;
 
+        QDial* cycle_dial;
+        QLabel* cycle_label;
+        QGroupBox* cycle_group;
+        QVBoxLayout* cycle_layout;
+        QSpacerItem *cycle_spacer;
+
+        QDial* skip_dial;
+        QLabel* skip_label;
+        QGroupBox* skip_group;
+        QVBoxLayout* skip_layout;
+        QSpacerItem *skip_spacer;
+
         float gate;
 
         LV2UI_Controller controller;
         LV2UI_Write_Function write_function;
 
-        public slots:
-            void chordChanged(bool checked);
+    public slots:
+        void chordChanged(bool checked);
         void timeChanged(bool checked);
         void rangeChanged(int value);
         void gateChanged(int value);
+        void cycleChanged(int value);
+        void skipChanged(int value);
+        void dirChanged(bool checked);
 
 };
 
-AmpGui::AmpGui(QWidget* parent)
+SimpleArpeggiatorGUI::SimpleArpeggiatorGUI(QWidget* parent)
     : QWidget(parent) {
         QRadioButton();
 
@@ -73,7 +99,7 @@ AmpGui::AmpGui(QWidget* parent)
         chord_octave = new QRadioButton("Octave");
         chord_major = new QRadioButton("Major");
         chord_minor = new QRadioButton("Minor");
-        chord_spacer = new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding);
+        chord_spacer = new QSpacerItem(20,40,QSizePolicy::Minimum, QSizePolicy::Expanding);
         chord_layout = new QVBoxLayout();
         chord_layout->addWidget(chord_label);
         chord_layout->addWidget(chord_octave);
@@ -81,6 +107,20 @@ AmpGui::AmpGui(QWidget* parent)
         chord_layout->addWidget(chord_minor);
         chord_layout->addItem(chord_spacer);
         chord_group->setLayout(chord_layout);
+
+        dir_group = new QGroupBox();
+        dir_label = new QLabel("direction");
+        dir_up = new QRadioButton("up");
+        dir_down = new QRadioButton("down");
+        dir_updown = new QRadioButton("up-down");
+        dir_spacer = new QSpacerItem(20,40,QSizePolicy::Minimum, QSizePolicy::Expanding);
+        dir_layout = new QVBoxLayout();
+        dir_layout->addWidget(dir_label);
+        dir_layout->addWidget(dir_up);
+        dir_layout->addWidget(dir_down);
+        dir_layout->addWidget(dir_updown);
+        dir_layout->addItem(dir_spacer);
+        dir_group->setLayout(dir_layout);
 
         time_group = new QGroupBox();
         time_label = new QLabel("Time");
@@ -90,7 +130,7 @@ AmpGui::AmpGui(QWidget* parent)
         time_1_8 = new QRadioButton("1/8");
         time_1_16 = new QRadioButton("1/16");
         time_1_32 = new QRadioButton("1/32");
-        time_spacer = new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding);
+        time_spacer = new QSpacerItem(20,40,QSizePolicy::Minimum, QSizePolicy::Expanding);
         time_layout = new QVBoxLayout();
         time_layout->addWidget(time_label);
         time_layout->addWidget(time_1_1);
@@ -108,7 +148,7 @@ AmpGui::AmpGui(QWidget* parent)
         range_dial->setRange(1, 9);
         range_dial->setValue(9);
         range_dial->setNotchesVisible(true);
-        range_spacer = new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding);
+        range_spacer = new QSpacerItem(20,40,QSizePolicy::Minimum, QSizePolicy::Expanding);
         range_layout = new QVBoxLayout();
         range_layout->addWidget(range_label);
         range_layout->addWidget(range_dial);
@@ -120,39 +160,78 @@ AmpGui::AmpGui(QWidget* parent)
         gate_dial = new QDial();
         gate_dial->setRange(0, 100);
         gate_dial->setNotchesVisible(true);
-        gate_spacer = new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding);
+        gate_spacer = new QSpacerItem(20,40,QSizePolicy::Minimum, QSizePolicy::Expanding);
         gate_layout = new QVBoxLayout();
         gate_layout->addWidget(gate_label);
         gate_layout->addWidget(gate_dial);
         gate_layout->addItem(gate_spacer);
         gate_group->setLayout(gate_layout);
 
+        skip_group = new QGroupBox();
+        skip_label = new QLabel("skip");
+        skip_dial = new QDial();
+        skip_dial->setRange(0, 100);
+        skip_dial->setNotchesVisible(true);
+        skip_spacer = new QSpacerItem(20,40,QSizePolicy::Minimum, QSizePolicy::Expanding);
+        skip_layout = new QVBoxLayout();
+        skip_layout->addWidget(skip_label);
+        skip_layout->addWidget(skip_dial);
+        skip_layout->addItem(skip_spacer);
+        skip_group->setLayout(skip_layout);
+
+        cycle_group = new QGroupBox();
+        cycle_label = new QLabel("cycle");
+        cycle_dial = new QDial();
+        cycle_dial->setRange(1, 6);
+        cycle_dial->setNotchesVisible(true);
+        cycle_spacer = new QSpacerItem(20,40,QSizePolicy::Minimum, QSizePolicy::Expanding);
+        cycle_layout = new QVBoxLayout();
+        cycle_layout->addWidget(cycle_label);
+        cycle_layout->addWidget(cycle_dial);
+        cycle_layout->addItem(cycle_spacer);
+        cycle_group->setLayout(cycle_layout);
+
         layout = new QHBoxLayout();
-        layout->addWidget(chord_group);
+        v1_layout = new QVBoxLayout();
+        v2_layout = new QVBoxLayout();
+        v3_layout = new QVBoxLayout();
+        v1_layout->addWidget(chord_group);
+        v1_layout->addWidget(dir_group);
+        v2_layout->addWidget(range_group);
+        v2_layout->addWidget(cycle_group);
+        v3_layout->addWidget(gate_group);
+        v3_layout->addWidget(skip_group);
+        layout->addLayout(v1_layout);
         layout->addWidget(time_group);
-        layout->addWidget(range_group);
-        layout->addWidget(gate_group);
+        layout->addLayout(v2_layout);
+        layout->addLayout(v3_layout);
         setLayout(layout);
 
 #ifndef QT_NO_TOOLTIP
         chord_group->setToolTip("The chord defines what notes are played in each octave");
+        dir_group->setToolTip("How the arpeggio is played");
         time_group->setToolTip("The length of each arpeggio note");
-        range_group->setToolTip("the arpeggio range in octaves");
-        gate_group->setToolTip("The percent of a whole apreggio note that should be played. Seting it to less than 100% can create cool staccato effects.");
+        range_group->setToolTip("The arpeggio range in octaves");
+        gate_group->setToolTip("The percentiage of a whole apreggio note that should be played. Seting it to less than 100% can create cool staccato effects.");
+        cycle_group->setToolTip("Cycle will jump over 0-6 steps in the arpeggio");
+        skip_group->setToolTip("Skip will cause the arpeggio to pause randomly if set to more than 0%");
 #endif
 
         chord_group->setStyleSheet("QGroupBox {  border: 1px solid gray;}");
+        dir_group->setStyleSheet("QGroupBox {  border: 1px solid gray;}");
         time_group->setStyleSheet("QGroupBox {  border: 1px solid gray;}");
         range_group->setStyleSheet("QGroupBox {  border: 1px solid gray;}");
         gate_group->setStyleSheet("QGroupBox {  border: 1px solid gray;}");
+        cycle_group->setStyleSheet("QGroupBox {  border: 1px solid gray;}");
+        skip_group->setStyleSheet("QGroupBox {  border: 1px solid gray;}");
     }
 
-AmpGui::~AmpGui() {
+SimpleArpeggiatorGUI::~SimpleArpeggiatorGUI() {
     // trying to delete the allocation in the constructor gives
     // segementation fault
 }
 
-void AmpGui::chordChanged(bool checked) {
+void SimpleArpeggiatorGUI::chordChanged(bool checked) {
     float chord = 0;
     if(!checked) return;
     if(chord_octave->isChecked()) chord = 0;
@@ -161,7 +240,7 @@ void AmpGui::chordChanged(bool checked) {
     write_function(controller, SIMPLEARPEGGIATOR_CHORD, sizeof(gate), 0, &chord);
 }
 
-void AmpGui::timeChanged(bool checked) {
+void SimpleArpeggiatorGUI::timeChanged(bool checked) {
     float time = 0;
     if(!checked) return;
     if(time_1_1->isChecked()) time = 0;
@@ -173,17 +252,37 @@ void AmpGui::timeChanged(bool checked) {
     write_function(controller, SIMPLEARPEGGIATOR_TIME, sizeof(gate), 0, &time);
 }
 
-void AmpGui::rangeChanged(int value) {
+void SimpleArpeggiatorGUI::rangeChanged(int value) {
     float range = range_dial->value();
     range_label->setText(QString("Range: %1").arg(range));
     write_function(controller, SIMPLEARPEGGIATOR_RANGE, sizeof(gate), 0, &range);
 }
 
-void AmpGui::gateChanged(int value) {
+void SimpleArpeggiatorGUI::gateChanged(int value) {
     float gate = gate_dial->value();
-
     gate_label->setText(QString("Gate: %1 %").arg(gate));
     write_function(controller, SIMPLEARPEGGIATOR_GATE, sizeof(gate), 0, &gate);
+}
+
+void SimpleArpeggiatorGUI::cycleChanged(int value) {
+    float cycle = cycle_dial->value();
+    cycle_label->setText(QString("cycle: %1 %").arg(cycle));
+    write_function(controller, SIMPLEARPEGGIATOR_CYCLE, sizeof(cycle), 0, &cycle);
+}
+
+void SimpleArpeggiatorGUI::skipChanged(int value) {
+    float skip = skip_dial->value();
+    gate_label->setText(QString("Gate: %1 %").arg(skip));
+    write_function(controller, SIMPLEARPEGGIATOR_SKIP, sizeof(skip), 0, &skip);
+}
+
+void SimpleArpeggiatorGUI::dirChanged(bool checked) {
+    float dir = 0;
+    if(!checked) return;
+    if(dir_up->isChecked()) dir = 0;
+    if(dir_down->isChecked()) dir = 1;
+    if(dir_updown->isChecked()) dir = 2;
+    write_function(controller, SIMPLEARPEGGIATOR_DIR, sizeof(gate), 0, &dir);
 }
 
 LV2UI_Handle instantiate(const struct _LV2UI_Descriptor* descriptor,
@@ -197,7 +296,7 @@ LV2UI_Handle instantiate(const struct _LV2UI_Descriptor* descriptor,
         return NULL;
     }
 
-    AmpGui* pluginGui = new AmpGui();
+    SimpleArpeggiatorGUI* pluginGui = new SimpleArpeggiatorGUI();
     *widget = pluginGui;
 
     if (pluginGui == NULL) return NULL;
@@ -227,19 +326,29 @@ LV2UI_Handle instantiate(const struct _LV2UI_Descriptor* descriptor,
             pluginGui, SLOT(rangeChanged(int)));
     QObject::connect(pluginGui->gate_dial, SIGNAL(valueChanged(int)),
             pluginGui, SLOT(gateChanged(int)));
+    QObject::connect(pluginGui->cycle_dial, SIGNAL(valueChanged(int)),
+            pluginGui, SLOT(cycleChanged(int)));
+    QObject::connect(pluginGui->skip_dial, SIGNAL(valueChanged(int)),
+            pluginGui, SLOT(skipChanged(int)));
+    QObject::connect(pluginGui->dir_up, SIGNAL(toggled(bool)),
+            pluginGui, SLOT(dirChanged(bool)));
+    QObject::connect(pluginGui->dir_down, SIGNAL(toggled(bool)),
+            pluginGui, SLOT(dirChanged(bool)));
+    QObject::connect(pluginGui->dir_updown, SIGNAL(toggled(bool)),
+            pluginGui, SLOT(dirChanged(bool)));
 
     return (LV2UI_Handle)pluginGui;
 }
 
 void cleanup(LV2UI_Handle ui) {
-    AmpGui* pluginGui = (AmpGui*) ui;
+    SimpleArpeggiatorGUI* pluginGui = (SimpleArpeggiatorGUI*) ui;
 
     delete pluginGui;
 }
 
 void port_event(LV2UI_Handle ui, uint32_t port_index, uint32_t buffer_size,
         uint32_t format, const void* buffer) {
-    AmpGui* pluginGui = (AmpGui*) ui;
+    SimpleArpeggiatorGUI* pluginGui = (SimpleArpeggiatorGUI*) ui;
     float* pval = (float*) buffer;
     int n;
 
@@ -269,6 +378,18 @@ void port_event(LV2UI_Handle ui, uint32_t port_index, uint32_t buffer_size,
             break;
         case SIMPLEARPEGGIATOR_GATE:
             pluginGui->gate_dial->setValue((int)(*pval  + 0.5));
+            break;
+        case SIMPLEARPEGGIATOR_CYCLE:
+            pluginGui->cycle_dial->setValue((int)(*pval  + 0.5));
+            break;
+        case SIMPLEARPEGGIATOR_SKIP:
+            pluginGui->skip_dial->setValue((int)(*pval  + 0.5));
+            break;
+        case SIMPLEARPEGGIATOR_DIR:
+            n = (int) (*pval  + 0.5);
+            if(n == 0) pluginGui->dir_up->setChecked(true);
+            if(n == 1) pluginGui->dir_down->setChecked(true);
+            if(n == 2) pluginGui->dir_updown->setChecked(true);
             break;
     }
 }

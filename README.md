@@ -8,7 +8,7 @@ This arpeggiator is inspired by the LMMS standard arpeggiator effect. It can be 
 INSTALLATION
 ------------
 
-Build and install the plugin with "make". To install the plugin locally (in ~/.lv2) type "make install". To install the plugin system-wide (in /usr/local/lv2) you instead need to type "sudo make install". In either case a preset bank is also installed locally in ~/.lv2
+Build the plugin from source with "make". To install the plugin locally (in ~/.lv2) type "make install". To install the plugin system-wide (in /usr/local/lv2) you instead need to type "sudo make install". In either case a preset bank is also installed locally in ~/.lv2
 
 To remove the plugin type "make uninstall" for local plugins, and "sudo make uninstall" for system-wide plugins.
 
@@ -20,7 +20,10 @@ These parameters are supported:
 * **chord** three types are supported: octave, major, and minor
 * **range** the arpeggio range in octaves
 * **time** set the length of each arpeggio note, for instance 1/8ths.
-* **gate** the percent of a whole apreggio note that should be played. Seting it to less than 100% can create cool staccato effects.
+* **gate** the percent of a whole apreggio note that should be played. Seting it to less than 100% can create cool staccato effects
+* **cycle** cycle will jump over 0-6 steps in the arpeggio
+* **skip** skip will cause the arpeggio to pause randomly if set to more than 0%
+* **dir** controls how the arpeggio is played: up, down, or up-down
 
 CODE
 ----
