@@ -3,6 +3,7 @@ BUNDLE = simplearpeggiator.lv2
 INSTALL_DIR = /home/johan/.lv2
 
 all: $(BUNDLE)
+	echo $(USER)
 
 gui:  install
 	jalv.qt5 https://github.com/johanberntsson/simple-arpeggiator-lv2
@@ -42,6 +43,10 @@ install: $(BUNDLE)
 	mkdir -p ~/.lv2
 	cp -R Simple_Apreggiator_presets.lv2 ~/.lv2
 
+uninstall: 
+	rm -rf $(INSTALL_DIR)/$(BUNDLE)
+	rm -rf ~/.lv2/Simple_Apreggiator_presets.lv2
+	
 clean:
 	rm -rf $(BUNDLE) *.o *.so *.moc.cpp
 
