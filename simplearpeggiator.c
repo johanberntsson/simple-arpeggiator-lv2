@@ -388,7 +388,7 @@ static void run(LV2_Handle instance, uint32_t   sample_count) {
     update_arp(self, last_t, sample_count, out_capacity);
 }
 
-
+/* Not needed for basic preset save/restore. What is this?
 static LV2_State_Status state_save(
         LV2_Handle                instance,
         LV2_State_Store_Function  store,
@@ -400,7 +400,6 @@ static LV2_State_Status state_save(
         return LV2_STATE_SUCCESS;
     }
 
-    /* TODO: restore instance info
     store(handle, self->uris.ui_spp,
             (void*)&self->ui_spp, sizeof(uint32_t),
             self->uris.atom_Int,
@@ -410,7 +409,6 @@ static LV2_State_Status state_save(
             (void*)&self->ui_amp, sizeof(float),
             self->uris.atom_Float,
             LV2_STATE_IS_POD);
-    */
 
     return LV2_STATE_SUCCESS;
 }
@@ -423,11 +421,10 @@ static LV2_State_Status state_restore(
         const LV2_Feature* const*   features) {
     SimpleArpeggiator* self = (SimpleArpeggiator*) instance;
 
+
     size_t   size;
     uint32_t type;
     uint32_t valflags;
-
-    /* TODO: store instance info
     const void* spp = retrieve(
             handle, self->uris.ui_spp, &size, &type, &valflags);
     if (spp && size == sizeof(uint32_t) && type == self->uris.atom_Int) {
@@ -439,17 +436,19 @@ static LV2_State_Status state_restore(
     if (amp && size == sizeof(float) && type == self->uris.atom_Float) {
         self->ui_amp              = *((const float*)amp);
     }
-    */
 
     return LV2_STATE_SUCCESS;
 }
+*/
 
 static const void* extension_data(const char* uri)
 {
+    /* Not needed for basic preset save/restore. What is this?
     static const LV2_State_Interface state = { state_save, state_restore };
     if (!strcmp(uri, LV2_STATE__interface)) {
         return &state;
     }
+    */
     return NULL;
 }
 

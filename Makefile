@@ -39,6 +39,8 @@ install: $(BUNDLE)
 	mkdir -p $(INSTALL_DIR)
 	rm -rf $(INSTALL_DIR)/$(BUNDLE)
 	cp -R $(BUNDLE) $(INSTALL_DIR)
+	mkdir -p ~/.lv2
+	cp -R Simple_Apreggiator_presets.lv2 ~/.lv2
 
 clean:
 	rm -rf $(BUNDLE) *.o *.so *.moc.cpp

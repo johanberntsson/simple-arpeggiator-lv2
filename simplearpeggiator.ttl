@@ -8,6 +8,7 @@
 @prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix units: <http://lv2plug.in/ns/extensions/units#> .
+@prefix state:   <http://lv2plug.in/ns/ext/state#> .
 @prefix ui:    <http://lv2plug.in/ns/extensions/ui#>.
 
 <https://github.com/johanberntsson/simple-arpeggiator-lv2#qt5>
@@ -22,6 +23,7 @@
 	lv2:project <http://lv2plug.in/ns/lv2> ;
 	lv2:requiredFeature urid:map ;
 	lv2:optionalFeature lv2:hardRTCapable ;
+    lv2:extensionData state:interface ;
     ui:ui <https://github.com/johanberntsson/simple-arpeggiator-lv2#qt5>
 	lv2:port [
 		a lv2:InputPort ,

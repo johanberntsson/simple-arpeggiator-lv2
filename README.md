@@ -54,3 +54,4 @@ Useful information for LV2 development:
 * Outdated but useful info: http://ll-plugins.nongnu.org/lv2pftci/
 * GUI examples: https://github.com/badosu/BadAmp
 * GUI with fluid: http://mountainbikesandtrombones.blogspot.com.au/2014/08/making-lv2-plugin-gui-yes-in-inkscape.html
+* LV2 present handling: https://freesoftwaremusic.wordpress.com/2014/08/11/lv2-presets/
