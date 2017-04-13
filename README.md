@@ -5,6 +5,13 @@ This arpeggiator is inspired by the LMMS standard arpeggiator effect. It can be 
 
 ![SimpleArpeggiator in Qtractor](https://github.com/johanberntsson/simple-arpeggiator-lv2/blob/master/screenshots/plugin_qtractor.png)
 
+INSTALLATION
+------------
+
+Build and install the plugin with "make". To install the plugin locally (in ~/.lv2) type "make install". To install the plugin system-wide (in /usr/local/lv2) you instead need to type "sudo make install". In either case a preset bank is also installed locally in ~/.lv2
+
+To remove the plugin type "make uninstall" for local plugins, and "sudo make uninstall" for system-wide plugins.
+
 USAGE
 -----
 
