@@ -88,7 +88,7 @@ typedef struct {
 
     // arpeggio info
     uint8_t                  base_note; // base note of the current arpeggio
-    MIDINoteEvent            arpeggiator_note; // the currently played apreggio note
+    MIDINoteEvent            arpeggiator_note; // the currently played arpeggio note
     uint32_t                 arpeggiator_note_last_frame; // scheduled note off (frames)
 
     // Logger convenience API

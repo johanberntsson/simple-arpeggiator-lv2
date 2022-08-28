@@ -18,7 +18,7 @@
 
 <https://github.com/johanberntsson/simple-arpeggiator-lv2>
 	a lv2:Plugin ;
-	doap:name "Simple Apreggiator" ;
+	doap:name "Simple Arpeggiator" ;
 	doap:license <http://opensource.org/licenses/isc> ;
 	lv2:project <http://lv2plug.in/ns/lv2> ;
 	lv2:requiredFeature urid:map ;
