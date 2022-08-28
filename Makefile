@@ -46,7 +46,7 @@ else
 	cp -R $(BUNDLE) $(INSTALL_LOCAL_DIR)
 endif
 	mkdir -p $(INSTALL_LOCAL_DIR)
-	cp -R Simple_Apreggiator_presets.lv2 $(INSTALL_LOCAL_DIR)
+	cp -R Simple_Arpeggiator_presets.lv2 $(INSTALL_LOCAL_DIR)
 
 uninstall: 
 ifeq ($(shell whoami), root)
@@ -54,7 +54,7 @@ ifeq ($(shell whoami), root)
 else
 	rm -rf $(INSTALL_LOCAL_DIR)/$(BUNDLE)
 endif
-	rm -rf $(INSTALL_LOCAL_DIR)/Simple_Apreggiator_presets.lv2
+	rm -rf $(INSTALL_LOCAL_DIR)/Simple_Arpeggiator_presets.lv2
 	
 clean:
 	rm -rf $(BUNDLE) *.o *.so *.moc.cpp
